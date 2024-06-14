@@ -1,0 +1,198 @@
+from collections import deque
+from datetime import datetime
+
+import pandas
+import pandas as pd
+
+
+
+#
+# def query_all_holdings(account_owner=None, listed=True):
+#     # Connect to the SQLite database
+#     conn = sqlite3.connect(DATABASE_FILE)
+#
+#     if not listed:
+#         sign = '='
+#     else:
+#         sign = '!='
+#
+#     # Dynamically build the SELECT part of the query
+#     select_columns = """
+#             a.ACCOUNT_ID,
+#             a.ACCOUNT_NAME,
+#             h.ASSET_ID,
+#             h.VOLUME,
+#             s.NAME,
+#             s.MARKET,
+#             s.CATEGORY,
+#             s.SUB_CATEGORY,
+#             s.PROFILE,
+#             s.CURRENT_PRICE,
+#             s.CURRENCY,
+#             COALESCE(f.CURRENT_PRICE, 1) AS FX_RATE
+#     """
+#
+#     # Include a.ACCOUNT_OWNER in the selection if account_owner is not provided
+#     if not account_owner:
+#         select_columns = "a.ACCOUNT_OWNER, " + select_columns
+#
+#     # Construct the base part of the query using the dynamically built SELECT part
+#     query = f"""
+#         SELECT
+#             {select_columns}
+#         FROM
+#             Accounts a
+#         LEFT JOIN
+#             Holdings h ON a.ACCOUNT_ID = h.ACCOUNT_ID
+#         LEFT JOIN
+#             Assets s ON h.ASSET_ID = s.ASSET_ID
+#         LEFT JOIN
+#             FX f ON s.CURRENCY = f.FROM_CURRENCY
+#         WHERE
+#             1=1
+#     """
+#
+#     # Add condition for account_owner if provided
+#     if account_owner:
+#         query += f'AND a.ACCOUNT_OWNER = "{account_owner}"\n'
+#
+#     # Add the final part of the WHERE clause
+#     query += f'AND s.MARKET {sign} 0'
+#
+#     # Use Pandas to read the SQL query result into a DataFrame
+#     df = pd.read_sql_query(query, conn)
+#
+#     # Close the database connection
+#     conn.close()
+#
+#     return df
+
+def calculate_average_purchase_price(df):
+    # Reset the index to ensure 'ACCOUNT_ID' is treated as a 1-dimensional column
+    df = df.reset_index(drop=True)
+
+    # Check and remove any duplicate columns named 'ACCOUNT_ID'
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Initialize the column for tracking volume after FIFO
+    df['PURCHASE_VOLUME'] = df['VOLUME']  # Start with the original volume
+
+    # Group the DataFrame by 'ACCOUNT_ID' and 'ASSET_ID' and apply FIFO within each group
+    for _, group in df.groupby(['ACCOUNT_ID', 'ASSET_ID'], as_index=False):
+        purchases = deque()
+
+        for index, row in group.iterrows():
+            if row['BUY_SELL'] == 'B':
+                # Add the purchase to the queue (volume and total price)
+                purchases.append((index, row['VOLUME']))
+            elif row['BUY_SELL'] == 'S':
+                # Initialize the sell volume
+                sell_volume = row['VOLUME']
+
+                # FIFO calculation for sell
+                while sell_volume > 0 and purchases:
+                    buy_index, buy_volume = purchases[0]
+                    if buy_volume > sell_volume:
+                        # Reduce the buy volume and update the queue
+                        new_buy_volume = buy_volume - sell_volume
+                        purchases[0] = (buy_index, new_buy_volume)
+                        df.at[buy_index, 'PURCHASE_VOLUME'] = new_buy_volume
+                        sell_volume = 0
+                    else:
+                        # Remove the purchase from the queue and reduce the sell volume
+                        sell_volume -= buy_volume
+                        df.at[buy_index, 'PURCHASE_VOLUME'] = 0
+                        purchases.popleft()
+
+    # Ensure that VOLUME_FOR_FIFO for S transactions is set to 0
+    df.loc[df['BUY_SELL'] == 'S', 'PURCHASE_VOLUME'] = 0
+    df['PURCHASE_VALUE_BASE'] = (df['PRICE'] + df['TRANSACTION_FEE'] / df['VOLUME']) * df['PURCHASE_VOLUME']
+    df['PURCHASE_VALUE'] = (df['PURCHASE_VALUE_BASE'] * df['FX_RATE']).round(4)
+
+    # grouped_df = df.groupby(['ACCOUNT_ID', 'ASSET_ID'])[['PURCHASE_VALUE', 'PURCHASE_VOLUME']].sum()
+    #
+    # grouped_df['AVERAGE_PRICE'] = grouped_df['PURCHASE_VALUE'] / ['PURCHASE_VOLUME']
+    grouped = df.groupby(['ACCOUNT_ID', 'ASSET_ID'])
+    grouped_df = grouped.apply(
+        lambda g: pd.Series({
+            'TOTAL_PURCHASE_VALUE_BASE': g['PURCHASE_VALUE_BASE'].sum(),
+            'TOTAL_PURCHASE_VALUE': g['PURCHASE_VALUE'].sum(),
+            'TOTAL_PURCHASE_VOLUME': g['PURCHASE_VOLUME'].sum()
+        })
+    ).reset_index()
+
+    # Calculate the average purchase price for each group
+    grouped_df['AVERAGE_PURCHASE_PRICE_BASE'] = (
+            grouped_df['TOTAL_PURCHASE_VALUE_BASE'] / grouped_df['TOTAL_PURCHASE_VOLUME']).round(4)
+    grouped_df['AVERAGE_PURCHASE_PRICE'] = (
+            grouped_df['TOTAL_PURCHASE_VALUE'] / grouped_df['TOTAL_PURCHASE_VOLUME']).round(4)
+    grouped_df = grouped_df[['ACCOUNT_ID', 'ASSET_ID', 'AVERAGE_PURCHASE_PRICE_BASE',
+                             'AVERAGE_PURCHASE_PRICE']].dropna(axis=0, how='any')
+
+    return grouped_df
+
+
+def adjust_prices_for_currency(prices_df, currency_rates_df):
+    # Merge prices with currency rates on ASSET_ID and DATE
+    adjusted_prices_df = prices_df.merge(currency_rates_df, on=['CURRENCY', 'DATE'], how='left', suffixes=('', '_FX'))
+
+    # Adjust prices for currency exchange rates
+    adjusted_prices_df['CONVERTED_PRICE'] = adjusted_prices_df.apply(
+        lambda x: (x['PRICE'] * x['PRICE_FX']) if pd.notnull(x['PRICE_FX']) else x['PRICE'],
+        axis=1
+    )
+    adjusted_prices_df.rename(columns={'DATE': 'TIMESTAMP'},inplace=True)
+
+    return adjusted_prices_df
+
+
+def preprocess_transactions(transactions_df):
+    """
+    Preprocess transactions DataFrame to include necessary columns and formats.
+    """
+    transactions_df['TIMESTAMP'] = pd.to_datetime(transactions_df['TIMESTAMP']).dt.date
+    transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B', -transactions_df['VOLUME'])
+    transactions_df.sort_values(by=['ASSET_ID', 'TIMESTAMP'], inplace=True)
+    return transactions_df
+
+
+def adjust_prices(prices_df, currency_rates_df):
+    """
+    Adjust prices for currency and multiplier. Placeholder for actual implementation.
+    """
+    adjusted_prices_df = adjust_prices_for_currency(prices_df, currency_rates_df)
+    adjusted_prices_df['TIMESTAMP'] = pd.to_datetime(adjusted_prices_df['TIMESTAMP'])
+    return adjusted_prices_df
+
+
+def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
+    """
+    Calculate daily values for a given asset.
+    """
+    daily_data = pd.DataFrame({'TIMESTAMP': pd.date_range(start=transactions_df['TIMESTAMP'].min(), end=datetime.now().strftime('%Y-%m-%d'))})
+    transactions_subset = transactions_df[transactions_df['ASSET_ID'] == asset_id].copy()
+    transactions_subset['CUMULATIVE_VOLUME'] = transactions_subset.groupby('ASSET_ID')['EFFECTIVE_VOLUME'].cumsum()
+    transactions_subset['TIMESTAMP'] = pd.to_datetime(transactions_subset['TIMESTAMP'])
+
+    daily_data = pd.merge(daily_data, adjusted_prices_df[adjusted_prices_df['ASSET_ID'] == asset_id],
+                          on='TIMESTAMP', how='left')
+    daily_data = pd.merge(daily_data, transactions_subset, on='TIMESTAMP', how='left')
+
+    asset_name = daily_data['NAME'][0]
+
+    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'CUMULATIVE_VOLUME']].ffill().fillna(0)
+
+    daily_data[asset_name] = daily_data['CONVERTED_PRICE'] * daily_data['CUMULATIVE_VOLUME']
+
+    return daily_data[['TIMESTAMP', asset_name]]
+
+    # daily_data = pd.merge(daily_data, adjusted_prices_df[adjusted_prices_df['ASSET_ID'] == asset_id],
+    #                       on='TIMESTAMP', how='left')
+    # daily_data = pd.merge(daily_data, transactions_subset, on='TIMESTAMP', how='left').ffill().fillna(0)
+    #
+    # daily_data = daily_data.infer_objects()
+    #
+    # asset_name = daily_data['NAME'][0]
+    #
+    # daily_data[asset_name] = daily_data['CONVERTED_PRICE'] * daily_data['CUMULATIVE_VOLUME']
+    # return daily_data[['TIMESTAMP', asset_name]]
