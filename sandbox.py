@@ -12,5 +12,5 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import datetime
 
-#refresh_market()
-refresh_fx()
+refresh_market()
+#refresh_fx()
