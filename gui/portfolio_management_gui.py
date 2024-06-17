@@ -86,9 +86,6 @@ class PortfolioManager:
                                                 value=2)
         self.plot_option_b.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
-        # Bind plot_choice radio buttons to trigger the content update
-        # self.plot_option_a.configure(command=self.on_plot_choice_change())
-        # self.plot_option_b.configure(command=self.on_plot_choice_change())
         self.plot_option_a.configure(command=self.on_selection_change)
         self.plot_option_b.configure(command=self.on_selection_change)
 

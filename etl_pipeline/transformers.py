@@ -218,38 +218,3 @@ def transform_prices_for_refresh(table_type='Prices'):
         final_prices_df = pd.concat([final_prices_yfinance_df, final_prices_biznesradar_df], axis=0)
 
     return final_prices_df
-
-
-# def merge_prices_data(current_df, yfinance_df):
-#     merged_df = pd.merge(current_df, yfinance_df, on='YFINANCE_ID', how='left', suffixes=(None, '_NEW'))
-#     merged_df['CURRENT_PRICE_NEW'] = merged_df['CURRENT_PRICE_NEW'] / merged_df['PRICE_MULTIPLIER']
-#
-#     # Update columns based on condition
-#     condition = merged_df['PRICE_DATE_NEW'] >= merged_df['PRICE_DATE']
-#     merged_df['CURRENT_PRICE'] = np.where(condition, merged_df['CURRENT_PRICE_NEW'], merged_df['CURRENT_PRICE'])
-#     merged_df['PRICE_DATE'] = np.where(condition, merged_df['PRICE_DATE_NEW'], merged_df['PRICE_DATE'])
-#
-#     # Drop unnecessary columns
-#     merged_df = merged_df.drop(['PRICE_DATE_NEW', 'CURRENT_PRICE_NEW', 'YFINANCE_ID', 'PRICE_MULTIPLIER'], axis=1)
-#
-#     return merged_df
-#
-#
-# def merge_fx_data(current_df, yfinance_df):
-#     # Extract currency codes from yfinance ticker
-#     yfinance_df['FROM_CURRENCY'] = yfinance_df['YFINANCE_ID'].str[:3]
-#     yfinance_df['TO_CURRENCY'] = yfinance_df['YFINANCE_ID'].str[3:6]
-#
-#     merged_df = pd.merge(current_df, yfinance_df, on=['FROM_CURRENCY', 'TO_CURRENCY'], how='left',
-#                          suffixes=(None, '_NEW'))
-#     merged_df['CURRENT_PRICE_NEW'] = merged_df['CURRENT_PRICE_NEW']
-#
-#     # Update columns based on condition
-#     condition = merged_df['PRICE_DATE_NEW'] >= merged_df['PRICE_DATE']
-#     merged_df['CURRENT_PRICE'] = np.where(condition, merged_df['CURRENT_PRICE_NEW'], merged_df['CURRENT_PRICE'])
-#     merged_df['PRICE_DATE'] = np.where(condition, merged_df['PRICE_DATE_NEW'], merged_df['PRICE_DATE'])
-#
-#     # Drop unnecessary columns
-#     merged_df = merged_df.drop(['PRICE_DATE_NEW', 'CURRENT_PRICE_NEW', 'YFINANCE_ID'], axis=1)
-#
-#     return merged_df
