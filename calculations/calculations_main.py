@@ -1,71 +1,8 @@
 from collections import deque
 from datetime import datetime
 
-import pandas
 import pandas as pd
 
-
-
-#
-# def query_all_holdings(account_owner=None, listed=True):
-#     # Connect to the SQLite database
-#     conn = sqlite3.connect(DATABASE_FILE)
-#
-#     if not listed:
-#         sign = '='
-#     else:
-#         sign = '!='
-#
-#     # Dynamically build the SELECT part of the query
-#     select_columns = """
-#             a.ACCOUNT_ID,
-#             a.ACCOUNT_NAME,
-#             h.ASSET_ID,
-#             h.VOLUME,
-#             s.NAME,
-#             s.MARKET,
-#             s.CATEGORY,
-#             s.SUB_CATEGORY,
-#             s.PROFILE,
-#             s.CURRENT_PRICE,
-#             s.CURRENCY,
-#             COALESCE(f.CURRENT_PRICE, 1) AS FX_RATE
-#     """
-#
-#     # Include a.ACCOUNT_OWNER in the selection if account_owner is not provided
-#     if not account_owner:
-#         select_columns = "a.ACCOUNT_OWNER, " + select_columns
-#
-#     # Construct the base part of the query using the dynamically built SELECT part
-#     query = f"""
-#         SELECT
-#             {select_columns}
-#         FROM
-#             Accounts a
-#         LEFT JOIN
-#             Holdings h ON a.ACCOUNT_ID = h.ACCOUNT_ID
-#         LEFT JOIN
-#             Assets s ON h.ASSET_ID = s.ASSET_ID
-#         LEFT JOIN
-#             FX f ON s.CURRENCY = f.FROM_CURRENCY
-#         WHERE
-#             1=1
-#     """
-#
-#     # Add condition for account_owner if provided
-#     if account_owner:
-#         query += f'AND a.ACCOUNT_OWNER = "{account_owner}"\n'
-#
-#     # Add the final part of the WHERE clause
-#     query += f'AND s.MARKET {sign} 0'
-#
-#     # Use Pandas to read the SQL query result into a DataFrame
-#     df = pd.read_sql_query(query, conn)
-#
-#     # Close the database connection
-#     conn.close()
-#
-#     return df
 
 def calculate_average_purchase_price(df):
     # Reset the index to ensure 'ACCOUNT_ID' is treated as a 1-dimensional column
@@ -186,13 +123,3 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
 
     return daily_data[['TIMESTAMP', asset_name]]
 
-    # daily_data = pd.merge(daily_data, adjusted_prices_df[adjusted_prices_df['ASSET_ID'] == asset_id],
-    #                       on='TIMESTAMP', how='left')
-    # daily_data = pd.merge(daily_data, transactions_subset, on='TIMESTAMP', how='left').ffill().fillna(0)
-    #
-    # daily_data = daily_data.infer_objects()
-    #
-    # asset_name = daily_data['NAME'][0]
-    #
-    # daily_data[asset_name] = daily_data['CONVERTED_PRICE'] * daily_data['CUMULATIVE_VOLUME']
-    # return daily_data[['TIMESTAMP', asset_name]]
