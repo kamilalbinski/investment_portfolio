@@ -96,17 +96,6 @@ def get_latest_prices_from_database(table='Prices'):
     return df
 
 
-# def get_price_data(price_table_name, asset_ids, start_date, end_date):
-#     placeholders = ', '.join(['?'] * len(asset_ids))
-#     query = f'''
-#     SELECT p.ASSET_ID, p.DATE, p.PRICE, s.NAME, s.CURRENCY
-#     FROM {price_table_name} p
-#     JOIN Assets s ON p.ASSET_ID = s.ASSET_ID
-#     WHERE p.ASSET_ID IN ({placeholders}) AND p.DATE BETWEEN ? AND ?
-#     '''
-#     params = asset_ids + [start_date, end_date]
-#     return fetch_data_from_database(query, params)
-
 
 def get_price_data(price_table_name, asset_ids, start_date, end_date):
     # Convert asset_ids to a string of comma-separated values
@@ -133,15 +122,6 @@ def get_all_currency_asset_ids():
     return df
 
 
-# def get_currency_ids(currency_ids, start_date, end_date):
-#     currency_ids_placeholder = ', '.join('?' for _ in currency_ids)
-#     query = f'''
-#     SELECT c.ASSET_ID, c.DATE, c.PRICE
-#     FROM Currencies c
-#     JOIN Assets s ON c.ASSET_ID = s.ASSET_ID
-#     WHERE c.ASSET_ID IN ({currency_ids_placeholder}) AND c.DATE BETWEEN ? AND ?
-#     '''
-#     return fetch_data_from_database(query, currency_ids + [start_date, end_date])
 def query_all_transactions(account_owner=None):
     # Connect to the SQLite database
     conn = sqlite3.connect(DATABASE_FILE)

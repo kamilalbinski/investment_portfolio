@@ -195,48 +195,6 @@ def calculate_edo_values(edo_id, mode='daily', volume=1):
 
     return final_df
 
-#
-# def calculate_edo_data(edo_id):
-#     # Get EDO details from Assets table in database
-#     edo_df = get_edo_details(edo_id)  # currently lookup via ASSET_ID supported
-#
-#     # Get dates required for calculation table
-#     purchase_date = edo_df['PRICE_DATE'].iloc[0]
-#     today_date = pd.Timestamp.today().normalize().tz_localize(None)
-#
-#     # Get CPI yearly updates from CPI table
-#     cpi_table = get_cpi_for_period(purchase_date, today_date)
-#
-#     # Create a calculations table, return current value as of today's date
-#     final_df = calculate_aggregated_value(purchase_date, today_date, edo_df, cpi_table, return_table=False)
-#
-#     return final_df
-#
-#
-# def calculate_edo_data(edo_id, volume):
-#     # Get EDO details from Assets table in database
-#     edo_df = get_edo_details(edo_id)  # currently lookup via ASSET_ID supported
-#
-#     # Get dates required for calculation table
-#     purchase_date = edo_df['PRICE_DATE'].iloc[0]
-#     today_date = pd.Timestamp.today().normalize().tz_localize(None)
-#
-#     # Get CPI yearly updates from CPI table
-#     cpi_table = get_cpi_for_period(purchase_date, today_date)
-#
-#     # Create a calculations table, return current value as of today's date
-#     final_df = calculate_aggregated_value(purchase_date, today_date, edo_df, cpi_table, return_table=True)
-#
-#     final_df['AGGREGATED_VALUE'] *= volume
-#
-#     final_df = final_df.rename(columns={'AGGREGATED_VALUE': edo_df['NAME'].iloc[0]}
-#                                ).drop(columns=['CPI', 'FIXED_ANNUAL_RATE', 'TOTAL_ANNUAL_RATE',
-#                                                'DAILY_RATE', 'BASE_VALUE', 'DAILY_INTEREST'])
-#     final_df.index.names = ['TIMESTAMP']
-#
-#     return final_df
-
-
 def calculate_bulk_edo_values(edo_data, mode='daily'):
     edos_df_list = []
     for index, row in edo_data.iterrows():
