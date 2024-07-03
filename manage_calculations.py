@@ -91,9 +91,9 @@ def calculate_portfolio_over_time(owner=None):
     transactions_df = preprocess_transactions(transactions_df)
 
     asset_ids = transactions_df['ASSET_ID'].unique()
-    prices_df = get_price_data('Prices', asset_ids, transactions_df['TIMESTAMP'].min(), datetime.now().strftime('%Y-%m-%d'))
+    prices_df = get_price_data('PRICES', asset_ids, transactions_df['TIMESTAMP'].min(), datetime.now().strftime('%Y-%m-%d'))
     currency_ids = get_all_currency_asset_ids()['ASSET_ID'].to_list()
-    currency_rates_df = get_price_data('Currencies', currency_ids, transactions_df['TIMESTAMP'].min(), datetime.now().strftime('%Y-%m-%d'))
+    currency_rates_df = get_price_data('CURRENCIES', currency_ids, transactions_df['TIMESTAMP'].min(), datetime.now().strftime('%Y-%m-%d'))
 
     adjusted_prices_df = adjust_prices(prices_df, currency_rates_df)
 

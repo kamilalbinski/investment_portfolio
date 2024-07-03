@@ -145,20 +145,20 @@ def transform(new_data, source, file_type):
 
 
 def transform_assets_for_refresh():
-    assets_df = fetch_data_from_database('Assets')
-    mappings_yfinance_df = fetch_data_from_database('Mapping_yfinance')
+    assets_df = fetch_data_from_database('ASSETS')
+    mappings_yfinance_df = fetch_data_from_database('MAPPING_YFINANCE')
 
     merged_df = pd.merge(assets_df, mappings_yfinance_df, on='ASSET_ID', how='left')
 
     return merged_df
 
 
-def get_new_assets(assets_df, latest_prices_df, table_type='Prices'):
+def get_new_assets(assets_df, latest_prices_df, table_type='PRICES'):
     latest_prices_list = latest_prices_df['ASSET_ID'].to_list()
 
-    if table_type == 'Prices':
+    if table_type == 'PRICES':
         new_assets = assets_df[(assets_df['MARKET'] != str(0))].copy()
-    elif table_type == 'Currencies':
+    elif table_type == 'CURRENCIES':
         new_assets = assets_df[(assets_df['MARKET'] == str(0)) & (assets_df['CATEGORY'] == 'FX')].copy()
     else:
         print('Unknown table type')
@@ -171,12 +171,12 @@ def get_new_assets(assets_df, latest_prices_df, table_type='Prices'):
     return new_assets
 
 
-def transform_prices_for_refresh(table_type='Prices'):
+def transform_prices_for_refresh(table_type='PRICES'):
     # get assets
-    assets_df = fetch_data_from_database('Assets')
+    assets_df = fetch_data_from_database('ASSETS')
 
-    # get Latest Prices & Mapping from Database, merge both
-    latest_prices_df = fetch_data_from_database(f'Latest_{table_type}')
+    # get Latest PRICES & Mapping from Database, merge both
+    latest_prices_df = fetch_data_from_database(f'LATEST_{table_type}')
 
     # Handle assets not included in table
     new_assets_df = get_new_assets(assets_df, latest_prices_df, table_type=table_type)
@@ -199,7 +199,7 @@ def transform_prices_for_refresh(table_type='Prices'):
     # Merge latest prices and yfinance mapping
 #    if prices_from_yfinance_df is not None:
     if not prices_from_yfinance_df.empty:
-        mappings_yfinance_df = fetch_data_from_database('Mapping_yfinance')
+        mappings_yfinance_df = fetch_data_from_database('MAPPING_YFINANCE')
         merged_yfinance_df = pd.merge(prices_from_yfinance_df, mappings_yfinance_df, on='ASSET_ID', how='inner')
 
         # transform into yfinance extractor-viable format

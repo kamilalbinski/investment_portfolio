@@ -31,21 +31,21 @@ def add_new_asset(first_key, second_key, is_edo=False):
     else:
         column_to_lookup = 'PRICE_DATE'
 
-    # Check if the asset already exists in the Assets table
-    query = f"SELECT ASSET_ID FROM Assets WHERE NAME = '{first_key}' AND {column_to_lookup} = '{second_key}'"
+    # Check if the asset already exists in the ASSETS table
+    query = f"SELECT ASSET_ID FROM ASSETS WHERE NAME = '{first_key}' AND {column_to_lookup} = '{second_key}'"
     existing_asset_id = pd.read_sql_query(query, conn)
 
     if existing_asset_id.empty:
-        # Asset not found, add a new row to the Assets table
+        # Asset not found, add a new row to the ASSETS table
         new_asset_data = {'NAME': [first_key], column_to_lookup: [second_key]}
         new_asset_df = pd.DataFrame(new_asset_data)
 
         new_asset_df = add_default_values(new_asset_df, is_edo)
 
-        new_asset_df.to_sql('Assets', conn, if_exists='append', index=False)
-        print(f'{first_key} for {str(second_key).split()[0]} not found. Adding to table: "Assets"')
+        new_asset_df.to_sql('ASSETS', conn, if_exists='append', index=False)
+        print(f'{first_key} for {str(second_key).split()[0]} not found. Adding to table: "ASSETS"')
         # Retrieve the newly generated ASSET_ID
-        query = f"SELECT ASSET_ID FROM Assets WHERE NAME = '{first_key}' AND {column_to_lookup} = '{second_key}'"
+        query = f"SELECT ASSET_ID FROM ASSETS WHERE NAME = '{first_key}' AND {column_to_lookup} = '{second_key}'"
         new_asset_id = pd.read_sql_query(query, conn)['ASSET_ID'].values[0]
 
         # Close the database connection
@@ -67,8 +67,8 @@ def load_holdings(new_df):
 
     conn = sqlite3.connect(DATABASE_FILE)
 
-    # Read existing data from the Holdings table
-    query = 'SELECT ASSET_ID, VOLUME, ACCOUNT_ID, REFRESH_DATE FROM Holdings'
+    # Read existing data from the HOLDINGS table
+    query = 'SELECT ASSET_ID, VOLUME, ACCOUNT_ID, REFRESH_DATE FROM HOLDINGS'
 
     existing_df = pd.read_sql_query(query, conn)
 
@@ -93,17 +93,17 @@ def load_holdings(new_df):
     updated_df = pd.concat([old_df_filtered, new_records_to_add], ignore_index=True)
 
     if not existing_df.equals(updated_df):
-        # Clear existing records in the Holdings table
+        # Clear existing records in the HOLDINGS table
         delta = abs(updated_df.shape[0] - existing_df.shape[0])
-        conn.execute("DELETE FROM Holdings;")
-        # Append new data to the Holdings table
-        updated_df.to_sql('Holdings', conn, if_exists='append', index=False, method='multi')
+        conn.execute("DELETE FROM HOLDINGS;")
+        # Append new data to the HOLDINGS table
+        updated_df.to_sql('HOLDINGS', conn, if_exists='append', index=False, method='multi')
 
         # Commit the transaction\
         print(f'Upload completed: {delta} new record(s) added to Database')
 
     else:
-        # existing_holdings_df.to_sql('Holdings', conn, if_exists='append', index=False, method='multi')
+        # existing_holdings_df.to_sql('HOLDINGS', conn, if_exists='append', index=False, method='multi')
         print('No changes required')
 
     conn.close()
@@ -120,14 +120,14 @@ def load_transactions(new_df):
     # Iterate over DataFrame rows as tuples
     for row in new_df.itertuples(index=False):
         # Check if record exists
-        query = """SELECT COUNT(*) FROM Transactions 
+        query = """SELECT COUNT(*) FROM TRANSACTIONS 
                    WHERE TIMESTAMP = ? AND ACCOUNT_ID = ? AND ASSET_ID = ?"""
         cursor.execute(query, (row.TIMESTAMP, row.ACCOUNT_ID, row.ASSET_ID))
         result = cursor.fetchone()
 
         if result[0] == 0:
             # Insert query with all columns specified
-            insert_query = """INSERT INTO Transactions 
+            insert_query = """INSERT INTO TRANSACTIONS 
                               (TIMESTAMP, ACCOUNT_ID, ASSET_ID, BUY_SELL, VOLUME, PRICE, TRANSACTION_FEE,\
                                ASSET_CURRENCY, BASE_CURRENCY, FX_RATE) 
                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
@@ -159,8 +159,8 @@ def load(new_data, file_type):
 #     new_data_df = pd.DataFrame(new_data)
 #
 #     conn.execute(f"DELETE FROM {table};")
-#     # new_asset_df.to_sql('Assets', conn, if_exists='append', index=False)
-#     # new_data.to_sql('Assets', conn, if_exists='append', index=False, method='multi')
+#     # new_asset_df.to_sql('ASSETS', conn, if_exists='append', index=False)
+#     # new_data.to_sql('ASSETS', conn, if_exists='append', index=False, method='multi')
 #     new_data.to_sql(table, conn, if_exists='append', index=False)
 #
 #     # Commit the transaction\
