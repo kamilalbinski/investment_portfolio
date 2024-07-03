@@ -9,9 +9,9 @@ def create_tables():
     conn = sqlite3.connect('portfolio.db')
     cursor = conn.cursor()
 
-    # Create Assets table
+    # Create ASSETS table
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Assets (
+        CREATE TABLE IF NOT EXISTS ASSETS (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             symbol TEXT NOT NULL,
             name TEXT,
@@ -20,16 +20,16 @@ def create_tables():
         )
     ''')
 
-    # Create Transactions table
+    # Create TRANSACTIONS table
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Transactions (
+        CREATE TABLE IF NOT EXISTS TRANSACTIONS (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             asset_id INTEGER,
             quantity INTEGER,
             price REAL,
             transaction_type TEXT,
             date TEXT,
-            FOREIGN KEY (asset_id) REFERENCES Assets(id)
+            FOREIGN KEY (asset_id) REFERENCES ASSETS(id)
         )
     ''')
 
@@ -63,15 +63,15 @@ def fetch_data_from_database(table_name, query=None):
 
 
 def get_asset_ids_from_database():
-    query = 'SELECT NAME, ASSET_ID, MARKET, PRICE_DATE FROM Assets'
-    df = fetch_data_from_database(table_name='Assets', query=query)
+    query = 'SELECT NAME, ASSET_ID, MARKET, PRICE_DATE FROM ASSETS'
+    df = fetch_data_from_database(table_name='ASSETS', query=query)
     df['PRICE_DATE'] = pd.to_datetime(df['PRICE_DATE'])
     return df
 
 
-def get_latest_prices_from_database(table='Prices'):
+def get_latest_prices_from_database(table='PRICES'):
     query = f"""
-            WITH Latest_{table} AS (
+            WITH LATEST_{table} AS (
                 SELECT
                     ASSET_ID,
                     DATE,
@@ -85,7 +85,7 @@ def get_latest_prices_from_database(table='Prices'):
                 DATE,
                 PRICE
             FROM
-                Latest_{table}
+                LATEST_{table}
             WHERE
                 rn = 1;
             """
@@ -109,7 +109,7 @@ def get_price_data(price_table_name, asset_ids, start_date, end_date):
     query = f'''
     SELECT p.ASSET_ID, p.DATE, p.PRICE, s.NAME, s.CURRENCY
     FROM {price_table_name} p
-    JOIN Assets s ON p.ASSET_ID = s.ASSET_ID
+    JOIN ASSETS s ON p.ASSET_ID = s.ASSET_ID
     WHERE p.ASSET_ID IN ({asset_ids_str}) AND p.DATE BETWEEN '{start_date_str}' AND '{end_date_str}'
     '''
     # Fetch data using the existing unchanged function
@@ -117,8 +117,8 @@ def get_price_data(price_table_name, asset_ids, start_date, end_date):
 
 
 def get_all_currency_asset_ids():
-    query = 'SELECT NAME, ASSET_ID, CATEGORY FROM Assets WHERE CATEGORY == "FX"'
-    df = fetch_data_from_database(table_name='Assets', query=query)
+    query = 'SELECT NAME, ASSET_ID, CATEGORY FROM ASSETS WHERE CATEGORY == "FX"'
+    df = fetch_data_from_database(table_name='ASSETS', query=query)
     return df
 
 
@@ -153,13 +153,13 @@ def query_all_transactions(account_owner=None):
         SELECT 
             {select_columns}
         FROM 
-            Accounts a
+            ACCOUNTS a
         LEFT JOIN 
-            Transactions t ON a.ACCOUNT_ID = t.ACCOUNT_ID
+            TRANSACTIONS t ON a.ACCOUNT_ID = t.ACCOUNT_ID
         LEFT JOIN 
-            Assets s ON t.ASSET_ID = s.ASSET_ID
+            ASSETS s ON t.ASSET_ID = s.ASSET_ID
         LEFT JOIN 
-            Mapping_yfinance y ON t.ASSET_ID = y.ASSET_ID
+            MAPPING_YFINANCE y ON t.ASSET_ID = y.ASSET_ID
         WHERE 
             1=1
     """
@@ -214,21 +214,21 @@ def query_all_holdings(account_owner=None, listed=True):
         SELECT 
             {select_columns}
         FROM 
-            Accounts a
+            ACCOUNTS a
         LEFT JOIN 
-            Holdings h ON a.ACCOUNT_ID = h.ACCOUNT_ID
+            HOLDINGS h ON a.ACCOUNT_ID = h.ACCOUNT_ID
         LEFT JOIN 
-            Assets s ON h.ASSET_ID = s.ASSET_ID
+            ASSETS s ON h.ASSET_ID = s.ASSET_ID
         LEFT JOIN 
-            Latest_Prices p ON s.ASSET_ID = p.ASSET_ID
+            LATEST_PRICES p ON s.ASSET_ID = p.ASSET_ID
         LEFT JOIN (
             SELECT
                 c.PRICE,
                 s.CURRENCY
             FROM
-                Latest_Currencies c
+                LATEST_CURRENCIES c
             JOIN
-                Assets s ON c.ASSET_ID = s.ASSET_ID
+                ASSETS s ON c.ASSET_ID = s.ASSET_ID
         ) c on s.CURRENCY = c.CURRENCY
         WHERE 
             1=1
@@ -250,7 +250,7 @@ def query_all_holdings(account_owner=None, listed=True):
     return df
 
 
-def get_temporary_owners_list(table='Accounts'):
+def get_temporary_owners_list(table='ACCOUNTS'):
     # Connect to your database
 
     conn = sqlite3.connect(DATABASE_FILE)
