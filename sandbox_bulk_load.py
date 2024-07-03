@@ -1,4 +1,4 @@
-# Example Transactions DataFrame
+# Example TRANSACTIONS DataFrame
 # Replace this with your actual DataFrame loading method
 import pandas as pd
 
@@ -49,7 +49,7 @@ data['ASSET_ID'] = data['ASSET_ID'].astype('int')
 data['DATE'] = data['DATE'].astype('str')
 data['PRICE'] = data['PRICE'].astype('float')
 
-upload_to_table(data, 'Prices')
+upload_to_table(data, 'PRICES')
 
 # # download from yfinance
 # yfinance_data = get_prices_from_yfinance(tickers_list, rounding=4)
@@ -64,5 +64,5 @@ print(f'Refresh completed')
 
 
 
-#upload_to_table(merged_df, 'Assets')
+#upload_to_table(merged_df, 'ASSETS')
 

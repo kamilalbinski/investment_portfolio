@@ -33,7 +33,7 @@ def days_to_new_year(current_date):
 def get_edo_details(asset_id):  # get_edo_general_details(asset_id, volume?):
 
     asset_id = asset_id
-    table = 'Assets'
+    table = 'ASSETS'
     query = f'SELECT * FROM {table} WHERE ASSET_ID = {asset_id}'
     edo_df = fetch_data_from_database(table, query)
 
@@ -167,7 +167,7 @@ def calculate_edo_aggregated_value(from_date, to_date, edo_df, cpi_df, return_ta
 
 
 def calculate_edo_values(edo_id, mode='daily', volume=1):
-    # Get EDO details from Assets table in database
+    # Get EDO details from ASSETS table in database
     edo_df = get_edo_details(edo_id)  # currently lookup via ASSET_ID supported
 
     # Get dates required for calculation table
