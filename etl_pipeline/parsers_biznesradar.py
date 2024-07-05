@@ -1,6 +1,7 @@
-import pandas as pd
+
 from bs4 import BeautifulSoup
 import requests
+from etl_utils import *
 
 GENERIC_URL = 'https://www.biznesradar.pl/notowania-historyczne/'
 

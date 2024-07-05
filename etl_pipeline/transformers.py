@@ -1,12 +1,9 @@
-import pandas as pd
-import numpy as np
-import sqlite3
-from utils.config import DATABASE_FILE
 from etl_pipeline.loaders import add_new_asset
 from utils.database_setup import fetch_data_from_database, get_asset_ids_from_database
-from etl_pipeline.parsers_main import convert_date
-from etl_pipeline.parsers_yfinance import *
-from etl_pipeline.parsers_biznesradar import *
+from etl_pipeline.parsers_yfinance import download_adjusted_prices_from_yfinance
+from etl_pipeline.parsers_biznesradar import download_adjusted_prices_from_biznesradar
+from etl_utils import *
+
 
 def transform_holdings(new_data, is_edo=False):
     """Gets asset_id from Asset table based on ticker and market. If not found, calls function to add new asset_id"""
@@ -197,7 +194,7 @@ def transform_prices_for_refresh(table_type='PRICES'):
         columns=['PRICE_SOURCE']).copy()
 
     # Merge latest prices and yfinance mapping
-#    if prices_from_yfinance_df is not None:
+    #    if prices_from_yfinance_df is not None:
     if not prices_from_yfinance_df.empty:
         mappings_yfinance_df = fetch_data_from_database('MAPPING_YFINANCE')
         merged_yfinance_df = pd.merge(prices_from_yfinance_df, mappings_yfinance_df, on='ASSET_ID', how='inner')
