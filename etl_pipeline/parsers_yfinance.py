@@ -1,6 +1,5 @@
 import yfinance as yf
-from etl_utils import *
-
+from etl_pipeline.etl_utils import *
 
 def get_tickers_from_assets_df(df, tickers_only=True):
     if not tickers_only:

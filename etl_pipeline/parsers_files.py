@@ -2,7 +2,7 @@ import csv
 import os
 import re
 from pandas.tseries.offsets import DateOffset
-from etl_utils import *
+from etl_pipeline.etl_utils import *
 
 def convert_date(item):
     item = item.split('.')

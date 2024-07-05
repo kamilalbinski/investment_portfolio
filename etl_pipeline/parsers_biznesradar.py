@@ -1,7 +1,7 @@
 
 from bs4 import BeautifulSoup
 import requests
-from etl_utils import *
+from etl_pipeline.etl_utils import *
 
 GENERIC_URL = 'https://www.biznesradar.pl/notowania-historyczne/'
 
