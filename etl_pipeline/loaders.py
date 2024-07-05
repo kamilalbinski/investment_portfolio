@@ -1,7 +1,7 @@
 # loaders.py
 
 from utils.config import DATABASE_FILE
-from etl_utils import *
+from etl_pipeline.etl_utils import *
 
 def add_default_values(data, is_edo=False):
     """ default value for a new record"""

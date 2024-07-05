@@ -2,7 +2,7 @@ from etl_pipeline.loaders import add_new_asset
 from utils.database_setup import fetch_data_from_database, get_asset_ids_from_database
 from etl_pipeline.parsers_yfinance import download_adjusted_prices_from_yfinance
 from etl_pipeline.parsers_biznesradar import download_adjusted_prices_from_biznesradar
-from etl_utils import *
+from etl_pipeline.etl_utils import *
 
 
 def transform_holdings(new_data, is_edo=False):
