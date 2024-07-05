@@ -1,6 +1,5 @@
 import yfinance as yf
-import pandas as pd
-import logging
+from etl_utils import *
 
 
 def get_tickers_from_assets_df(df, tickers_only=True):

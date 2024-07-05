@@ -1,9 +1,7 @@
 # loaders.py
 
-import sqlite3
 from utils.config import DATABASE_FILE
-import pandas as pd
-
+from etl_utils import *
 
 def add_default_values(data, is_edo=False):
     """ default value for a new record"""
@@ -150,22 +148,6 @@ def load(new_data, file_type):
         load_holdings(new_data)
     elif file_type == 'transactions':
         load_transactions(new_data)
-
-
-# def upload_to_table(new_data, table):
-#     # Connect to the SQLite database
-#     conn = sqlite3.connect(DATABASE_FILE)
-#
-#     new_data_df = pd.DataFrame(new_data)
-#
-#     conn.execute(f"DELETE FROM {table};")
-#     # new_asset_df.to_sql('ASSETS', conn, if_exists='append', index=False)
-#     # new_data.to_sql('ASSETS', conn, if_exists='append', index=False, method='multi')
-#     new_data.to_sql(table, conn, if_exists='append', index=False)
-#
-#     # Commit the transaction\
-#
-#     conn.close()
 
 
 def upload_to_table(new_data, table, action='append'):
