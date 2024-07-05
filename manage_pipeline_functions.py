@@ -1,6 +1,6 @@
 import os
 
-from etl_pipeline.parsers_main import parse_mbank, parse_pkotb
+from etl_pipeline.parsers_files import parse_mbank, parse_pkotb
 from etl_pipeline.loaders import load
 from etl_pipeline.transformers import transform_holdings, transform
 from utils.config import MBANK_FOLDER, PKOTB_FOLDER

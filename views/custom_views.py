@@ -16,7 +16,7 @@ def default_pivot(data=None, owner=None, save_results=False):
     # Calculate Subtotals for each SUB_CATEGORY
     subtotals = pd.pivot_table(df, values='CURRENT_ASSET_VALUE', index=['SUB_CATEGORY'], aggfunc='sum').reset_index()
     subtotals['PROFILE'] = '[Subtotal]'  # Marking subtotal rows
-    subtotals['SortKey'] = ''  # Ensuring subtotals sort to the top (use 'ZZZ' to sort to bottom)
+    subtotals['SortKey'] = ''  # Ensuring subtotals sort to the top
     subtotals['IsSubtotal'] = True
 
     # Combine detailed and subtotal data

@@ -1,10 +1,8 @@
 import csv
-import pandas as pd
 import os
 import re
 from pandas.tseries.offsets import DateOffset
-import datetime
-
+from etl_utils import *
 
 def convert_date(item):
     item = item.split('.')
@@ -30,11 +28,6 @@ def parse_date_from_filename(file_name):
     else:
         return None
 
-
-
-
-
-# Define the refactored functions based on the provided structure and refactoring plan
 
 def read_csv_header_mbank(file_path, skip_rows, delimiter=';'):
     """
@@ -168,11 +161,9 @@ def create_results_table_mbank(parsed_data, file_type):
             timestamp, ticker_name, market, buy_sell, volume, price, asset_ccy, trans_fee, base_ccy, value = file_row[:10]
 
             result_row = {
-                #'OWNER': parsed_data['account_owner'],
                 'TIMESTAMP': timestamp,
                 'ACCOUNT_ID': parsed_data['account_id'],
                 'ASSET_ID': None,
-                #'REFRESH_DATE': parsed_data['date'],
                 'BUY_SELL': buy_sell,
                 'VOLUME': volume,
                 'PRICE': price,
@@ -215,6 +206,7 @@ def parse_mbank(file_path):
 
 
 def parse_pkotb(file_path):
+
     source = 'pkotb'
 
     df = pd.read_excel(file_path)
@@ -227,7 +219,7 @@ def parse_pkotb(file_path):
     df.columns.values[3] = "VALUE"
     df.columns.values[4] = "CURRENT_VALUE"
     df.columns.values[5] = "MATURITY_DATE"
-    # df['PRICE_DATE'] = (pd.to_datetime(df['MATURITY_DATE']) - DateOffset(years=10)).astype('str')+' 00:00:00'
+
     df['PRICE_DATE'] = pd.to_datetime(df['MATURITY_DATE']) - DateOffset(years=10)
     df['MARKET'] = '0'
     df['ACCOUNT_ID'] = os.path.basename(os.path.dirname(file_path))
