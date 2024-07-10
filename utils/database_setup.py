@@ -1,48 +1,27 @@
 import sqlite3
-
 import pandas as pd
+import os
 
 from utils.config import DATABASE_FILE
 
 
-def create_tables():
-    conn = sqlite3.connect('portfolio.db')
+def execute_ddl(ddl_statement):
+    conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
-
-    # Create ASSETS table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ASSETS (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT NOT NULL,
-            name TEXT,
-            type TEXT,
-            UNIQUE(symbol)
-        )
-    ''')
-
-    # Create TRANSACTIONS table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS TRANSACTIONS (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            asset_id INTEGER,
-            quantity INTEGER,
-            price REAL,
-            transaction_type TEXT,
-            date TEXT,
-            FOREIGN KEY (asset_id) REFERENCES ASSETS(id)
-        )
-    ''')
-
-    # Create Portfolios table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Portfolios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT
-        )
-    ''')
-
+    cursor.execute(ddl_statement)
     conn.commit()
     conn.close()
+
+
+def create_tables_from_schemas(schema_dir='ddl'):
+    for file_name in os.listdir(schema_dir):
+        if file_name.endswith('.sql'):
+            table_name = file_name[7:-4]  # Remove the .sql extension to get the table name
+            sql_file_path = os.path.join(schema_dir, file_name)
+            with open(sql_file_path, 'r') as file:
+                ddl_statement = file.read()
+                execute_ddl(ddl_statement)
+            print(f"Table {table_name} checked/created.")
 
 
 def fetch_data_from_database(table_name, query=None):
@@ -94,7 +73,6 @@ def get_latest_prices_from_database(table='PRICES'):
     df['PRICE'] = df['PRICE'].round(4)
 
     return df
-
 
 
 def get_price_data(price_table_name, asset_ids, start_date, end_date):
