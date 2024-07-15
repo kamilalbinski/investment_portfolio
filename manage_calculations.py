@@ -53,8 +53,9 @@ def calculate_current_values(owner=None, return_totals=False):
         # Assuming calculate_bulk_edo_values function adjusts EDO DataFrame appropriately
         # and 'CURRENT_PRICE' field is already calculated and filled in edo_values_df
         edo_df['CURRENT_PRICE_x'] = edo_df['CURRENT_PRICE_y']
-        edo_df.drop(columns='CURRENT_PRICE_y', inplace=True)#.rename(columns={'CURRENT_PRICE_x': 'CURRENT_PRICE'},inplace=True)
-        edo_df.rename(columns={'CURRENT_PRICE_x': 'CURRENT_PRICE'},inplace=True)
+        edo_df.drop(columns='CURRENT_PRICE_y',
+                    inplace=True)  # .rename(columns={'CURRENT_PRICE_x': 'CURRENT_PRICE'},inplace=True)
+        edo_df.rename(columns={'CURRENT_PRICE_x': 'CURRENT_PRICE'}, inplace=True)
         edo_df['AVERAGE_PURCHASE_PRICE_BASE'] = 100  # Placeholder, adjust as necessary
         edo_df['AVERAGE_PURCHASE_PRICE'] = 100  # Placeholder, adjust as necessary
 
@@ -85,22 +86,24 @@ def calculate_current_values(owner=None, return_totals=False):
         return final_df
 
 
-
 def calculate_portfolio_over_time(owner=None):
     transactions_df = query_all_transactions(owner)
     transactions_df = preprocess_transactions(transactions_df)
 
     asset_ids = transactions_df['ASSET_ID'].unique()
-    prices_df = get_price_data('PRICES', asset_ids, transactions_df['TIMESTAMP'].min(), datetime.now().strftime('%Y-%m-%d'))
+    prices_df = get_price_data('PRICES', asset_ids, transactions_df['TIMESTAMP'].min(),
+                               datetime.now().strftime('%Y-%m-%d'))
     currency_ids = get_all_currency_asset_ids()['ASSET_ID'].to_list()
-    currency_rates_df = get_price_data('CURRENCIES', currency_ids, transactions_df['TIMESTAMP'].min(), datetime.now().strftime('%Y-%m-%d'))
+    currency_rates_df = get_price_data('CURRENCIES', currency_ids, transactions_df['TIMESTAMP'].min(),
+                                       datetime.now().strftime('%Y-%m-%d'))
 
     adjusted_prices_df = adjust_prices(prices_df, currency_rates_df)
 
     portfolio_df = pd.DataFrame()
     for asset_id in asset_ids:
         daily_values_df = calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id)
-        portfolio_df = pd.merge(portfolio_df, daily_values_df, on='TIMESTAMP', how='outer') if not portfolio_df.empty else daily_values_df
+        portfolio_df = pd.merge(portfolio_df, daily_values_df, on='TIMESTAMP',
+                                how='outer') if not portfolio_df.empty else daily_values_df
 
     # Handling EDO data
     edo_data = query_all_holdings(owner, listed=False)
