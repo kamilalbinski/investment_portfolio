@@ -2,6 +2,7 @@ from collections import deque
 from datetime import datetime
 
 import pandas as pd
+import numpy as np
 
 
 def calculate_average_purchase_price(df):
@@ -69,16 +70,34 @@ def calculate_average_purchase_price(df):
     return grouped_df
 
 
+def fix_price_no_fx_case(merged_price_fx_df):
+    """handles scenario where a certain asset is priced for a given date, but its relevant fx not by backward fill"""
+
+    df = merged_price_fx_df
+
+    columns_to_backfill = ['PRICE_FX', 'ASSET_ID_FX', 'NAME_FX']
+
+    # Apply the transformation to return previous FX rate details
+    condition = (pd.notnull(df['PRICE'])) & (pd.isnull(df['PRICE_FX'])) & (df['ASSET_ID'] == df['ASSET_ID'].shift(1))
+
+    for column in columns_to_backfill:
+        df[column] = np.where(condition, df[column].shift(1), df[column])
+
+    return df
+
+
 def adjust_prices_for_currency(prices_df, currency_rates_df):
     # Merge prices with currency rates on ASSET_ID and DATE
-    adjusted_prices_df = prices_df.merge(currency_rates_df, on=['CURRENCY', 'DATE'], how='left', suffixes=('', '_FX'))
+    merged_price_fx_df = prices_df.merge(currency_rates_df, on=['CURRENCY', 'DATE'], how='left', suffixes=('', '_FX'))
+
+    adjusted_prices_df = fix_price_no_fx_case(merged_price_fx_df)
 
     # Adjust prices for currency exchange rates
     adjusted_prices_df['CONVERTED_PRICE'] = adjusted_prices_df.apply(
         lambda x: (x['PRICE'] * x['PRICE_FX']) if pd.notnull(x['PRICE_FX']) else x['PRICE'],
         axis=1
     )
-    adjusted_prices_df.rename(columns={'DATE': 'TIMESTAMP'},inplace=True)
+    adjusted_prices_df.rename(columns={'DATE': 'TIMESTAMP'}, inplace=True)
 
     return adjusted_prices_df
 
@@ -88,7 +107,8 @@ def preprocess_transactions(transactions_df):
     Preprocess transactions DataFrame to include necessary columns and formats.
     """
     transactions_df['TIMESTAMP'] = pd.to_datetime(transactions_df['TIMESTAMP']).dt.date
-    transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B', -transactions_df['VOLUME'])
+    transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B',
+                                                                          -transactions_df['VOLUME'])
     transactions_df.sort_values(by=['ASSET_ID', 'TIMESTAMP'], inplace=True)
     return transactions_df
 
@@ -106,7 +126,8 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     """
     Calculate daily values for a given asset.
     """
-    daily_data = pd.DataFrame({'TIMESTAMP': pd.date_range(start=transactions_df['TIMESTAMP'].min(), end=datetime.now().strftime('%Y-%m-%d'))})
+    daily_data = pd.DataFrame(
+        {'TIMESTAMP': pd.date_range(start=transactions_df['TIMESTAMP'].min(), end=datetime.now().strftime('%Y-%m-%d'))})
     transactions_subset = transactions_df[transactions_df['ASSET_ID'] == asset_id].copy()
     transactions_subset['CUMULATIVE_VOLUME'] = transactions_subset.groupby('ASSET_ID')['EFFECTIVE_VOLUME'].cumsum()
     transactions_subset['TIMESTAMP'] = pd.to_datetime(transactions_subset['TIMESTAMP'])
@@ -122,4 +143,3 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     daily_data[asset_name] = daily_data['CONVERTED_PRICE'] * daily_data['CUMULATIVE_VOLUME']
 
     return daily_data[['TIMESTAMP', asset_name]]
-
