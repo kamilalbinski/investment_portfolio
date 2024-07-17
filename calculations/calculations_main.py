@@ -136,7 +136,7 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
                           on='TIMESTAMP', how='left')
     daily_data = pd.merge(daily_data, transactions_subset, on='TIMESTAMP', how='left')
 
-    asset_name = daily_data['NAME'][0]
+    asset_name = daily_data['NAME'].dropna().unique()[0]
 
     daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'CUMULATIVE_VOLUME']].ffill().fillna(0)
 
