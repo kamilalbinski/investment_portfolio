@@ -149,29 +149,31 @@ class PortfolioManager:
 
     def save_table_to_csv(self):
         # Get the current owner selection from a combobox
-
         owner = self.owner_combobox.get()
-
         if owner == 'All':
             owner = None
 
-        # Generate data based on the owner (None if 'All')
-
-        data = default_table(calculate_current_values(owner, return_totals=False), owner)
-
         # Get current date and time, format date as YYYYMMDD
-        # now = datetime.now()
-
         now = datetime.datetime.now()
         formatted_date = now.strftime('%Y%m%d')
 
-        #  Construct the file path for the CSV
+        # Construct the file path for the CSV
         parent_dir = os.path.dirname(os.getcwd())
-        file_path = os.path.join(parent_dir, f'{formatted_date}_current_assets_output.csv')
+        file_name = f"{formatted_date}_output.csv"
+
+        # Determine what data to save based on the current plot selection
+        if self.plot_choice.get() == 1:
+            # Save current portfolio values
+            data = default_table(self.plot_data, owner)
+            file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
+        elif self.plot_choice.get() == 2:
+            # Save portfolio value over time
+            data = self.plot_data
+            file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_output.csv")
 
         # Save the data to a CSV file
         data.to_csv(file_path, index=False)
-        self.append_log(f"Results saved to {formatted_date}_current_assets_output.csv")
+        self.append_log(f"Results saved to {file_name}")
 
     def on_selection_change(self):
 
@@ -212,6 +214,7 @@ class PortfolioManager:
             self.append_log(f"Drawing current asset value of Portfolio: {owner}")
         elif self.plot_choice.get() == 2:
             portfolio_data, transactions_data = calculate_portfolio_over_time(owner)
+            self.plot_data = portfolio_data
             fig = plot_portfolio_over_time(portfolio_data, transactions_data)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
