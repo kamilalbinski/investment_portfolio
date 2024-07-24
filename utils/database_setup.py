@@ -103,13 +103,13 @@ def get_all_currency_asset_ids():
 def query_all_transactions(account_owner=None):
     # Connect to the SQLite database
     conn = sqlite3.connect(DATABASE_FILE)
-
+#    t.ACCOUNT_ID,
     # Dynamically build the SELECT part of the query
     select_columns = """
             a.ACCOUNT_ID, 
             a.ACCOUNT_NAME,
             t.TIMESTAMP,
-            t.ACCOUNT_ID,
+
             t.ASSET_ID,
             y.YFINANCE_ID,
             y.PRICE_MULTIPLIER,

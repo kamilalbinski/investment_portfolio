@@ -16,5 +16,8 @@ import utils.config
 import sqlite3
 import os
 
-from utils.database_setup import create_tables_from_schemas
-create_tables_from_schemas()
+# from utils.database_setup import create_tables_from_schemas
+# create_tables_from_schemas()
+
+
+run_etl_processes()

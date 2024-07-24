@@ -109,7 +109,27 @@ def preprocess_transactions(transactions_df):
     transactions_df['TIMESTAMP'] = pd.to_datetime(transactions_df['TIMESTAMP']).dt.date
     transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B',
                                                                           -transactions_df['VOLUME'])
+
+    groupby_list = ['ACCOUNT_OWNER', 'ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
+
+    if 'ACCOUNT_OWNER' not in transactions_df.columns:
+        groupby_list.remove('ACCOUNT_OWNER')
+
+    transactions_df = transactions_df.groupby(groupby_list).agg({
+        'ACCOUNT_NAME': 'first',
+        'YFINANCE_ID': 'first',
+        'BASE_CURRENCY': 'first',
+        'ASSET_CURRENCY': 'first',
+        'PRICE_MULTIPLIER': 'mean',
+        'PRICE': 'mean',
+        'FX_RATE': 'mean',
+        'VOLUME': 'sum',
+        'TRANSACTION_FEE': 'sum',
+        'EFFECTIVE_VOLUME': 'sum'
+    }).reset_index()
+
     transactions_df.sort_values(by=['ASSET_ID', 'TIMESTAMP'], inplace=True)
+
     return transactions_df
 
 
