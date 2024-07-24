@@ -76,3 +76,39 @@ def default_table(data=None, owner=None):
     transformed_df = df[columns]
 
     return transformed_df
+
+
+# def portfolio_over_time_table(data=None, owner=None):
+#     df = data
+#     if df is None or df.empty:
+#         df = calculate_current_values(owner, return_totals=False)
+#
+#     if not owner:
+#         columns = [
+#             'ACCOUNT_OWNER',
+#             'ACCOUNT_NAME',
+#             'NAME',
+#             'CATEGORY',
+#             'SUB_CATEGORY',
+#             'PROFILE',
+#             'CURRENT_PRICE',
+#             'CURRENT_ASSET_VALUE',
+#             'RETURN_RATE',
+#             'RETURN_RATE_BASE'
+#         ]
+#     else:
+#         columns = [
+#             'ACCOUNT_NAME',
+#             'NAME',
+#             'CATEGORY',
+#             'SUB_CATEGORY',
+#             'PROFILE',
+#             'CURRENT_ASSET_VALUE',
+#             'RETURN_RATE',
+#             'RETURN_RATE_BASE'
+#         ]
+#
+#     transformed_df = df[columns]
+#
+#     return transformed_df
+
