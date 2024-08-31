@@ -62,8 +62,9 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
     ax.plot(portfolio_data['TIMESTAMP'], portfolio_data['Total Portfolio Value'], label='Total Portfolio Value',
             color="Slateblue", alpha=0.6)
 
+    # Include buy & sell information on the plot. Use 1-day delay for better visibility.
     for _, transaction in transactions_data.iterrows():
-        closest_date = portfolio_data.iloc[(portfolio_data['TIMESTAMP'] - transaction['TIMESTAMP']).abs().argsort()[:1]]
+        closest_date = portfolio_data.iloc[(portfolio_data['TIMESTAMP'] - (transaction['TIMESTAMP'] - pd.Timedelta(days=1))).abs().argsort()[:1]]
         transaction_value = closest_date['Total Portfolio Value'].values[0]
 
         if transaction['BUY_SELL'] == 'B':
@@ -73,10 +74,11 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
             ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='red', marker='v', alpha=0.7,
                        label='Sell' if 'Sell' not in ax.get_legend_handles_labels()[1] else "")
 
-    ax.set_title('Portfolio Value Over Time')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Total Value')
+    ax.grid(True, axis='y', zorder=1, linestyle='--',)
+
+    ax.set_title('Portfolio Value Over Time', zorder=2)
+    ax.set_xlabel('Date', zorder=2)
+    ax.set_ylabel('Total Value', zorder=2)
     ax.legend()
-    # Avoid calling plt.show() to enable plot embedding in Tkinter
 
     return fig
