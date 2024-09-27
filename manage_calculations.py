@@ -46,6 +46,8 @@ def calculate_current_values(owner=None, return_totals=False):
         edo_values_df = calculate_bulk_edo_values(edo_df, mode='current')
         edo_values_df = edo_values_df.tail(1).drop(columns=['TIMESTAMP']).melt(var_name='ASSET_ID',
                                                                                value_name='CURRENT_PRICE')
+        # Handles same periods' instruments held by multiple accounts
+        edo_values_df = edo_values_df.drop_duplicates()
 
         # Merge EDO current values into edo_df based on 'NAME'
         edo_df = pd.merge(edo_df, edo_values_df, on='ASSET_ID', how='left')

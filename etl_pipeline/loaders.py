@@ -3,6 +3,7 @@
 from utils.config import DATABASE_FILE
 from etl_pipeline.etl_utils import *
 
+
 def add_default_values(data, is_edo=False):
     """ default value for a new record"""
     df = data.copy()
@@ -12,7 +13,7 @@ def add_default_values(data, is_edo=False):
         # Default values for EDO instrument
         df['MARKET'] = 0
         df['CATEGORY'] = "BOND"
-        df['SUB_CATEGORY'] = "TREASURY BOND"
+        df['SUB_CATEGORY'] = "BONDS"
         df['CURRENT_PRICE'] = 100.00
         df['CURRENCY'] = "PLN"
         # df['PRICE_DATE'] = df['PRICE_DATE'].astype('str')
