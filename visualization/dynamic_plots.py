@@ -24,7 +24,7 @@ def plot_portfolio_percentage(data):
     plt.legend(title='Profile')
 
     plt.subplots_adjust(top=0.95)
-    #plt.subplots_adjust(top=0.85)
+    # plt.subplots_adjust(top=0.85)
     plt.tight_layout()
 
     bottoms = np.zeros(len(grouped))
@@ -40,7 +40,8 @@ def plot_portfolio_percentage(data):
             row_total += value
 
         adjusted_position = bottoms[idx] * 1
-        ax.text(idx, adjusted_position, f'Subtotal: {row_total:,.2f}({row_total / grand_total * 100:.1f}%)', ha='center',
+        ax.text(idx, adjusted_position, f'Subtotal: {row_total:,.2f}({row_total / grand_total * 100:.1f}%)',
+                ha='center',
                 va='bottom', color='black', fontsize=10, weight='bold')
 
     # ax.text(len(grouped) / 4, max(bottoms) * 1, f'Grand Total: {grand_total:,.2f}', ha='center', va='bottom',
@@ -64,7 +65,8 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
 
     # Include buy & sell information on the plot. Use 1-day delay for better visibility.
     for _, transaction in transactions_data.iterrows():
-        closest_date = portfolio_data.iloc[(portfolio_data['TIMESTAMP'] - (transaction['TIMESTAMP'] - pd.Timedelta(days=1))).abs().argsort()[:1]]
+        closest_date = portfolio_data.iloc[
+            (portfolio_data['TIMESTAMP'] - (transaction['TIMESTAMP'] - pd.Timedelta(days=1))).abs().argsort()[:1]]
         transaction_value = closest_date['Total Portfolio Value'].values[0]
 
         if transaction['BUY_SELL'] == 'B':
@@ -74,11 +76,78 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
             ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='red', marker='v', alpha=0.7,
                        label='Sell' if 'Sell' not in ax.get_legend_handles_labels()[1] else "")
 
-    ax.grid(True, axis='y', zorder=1, linestyle='--',)
+    ax.grid(True, axis='y', zorder=1, linestyle='--', )
 
     ax.set_title('Portfolio Value Over Time', zorder=2)
     ax.set_xlabel('Date', zorder=2)
     ax.set_ylabel('Total Value', zorder=2)
     ax.legend()
+
+    return fig
+
+
+def plot_asset_value_by_account(data):
+    df = pd.DataFrame(data)
+
+    # Aggregate CURRENT_ASSET_VALUE by ACCOUNT_NAME and PROFILE
+    aggregated = df.groupby(['ACCOUNT_NAME', 'PROFILE']).agg(
+        CURRENT_ASSET_VALUE=('CURRENT_ASSET_VALUE', 'sum')
+    ).reset_index()
+
+    # Calculate the total asset value for percentage calculation
+    total_asset_value = aggregated['CURRENT_ASSET_VALUE'].sum()
+
+    # Sort by ACCOUNT_NAME and CURRENT_ASSET_VALUE in descending order
+    aggregated = aggregated.sort_values(by=['ACCOUNT_NAME', 'CURRENT_ASSET_VALUE'], ascending=[True, False])
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Initialize y-position for bars
+    positions = []
+    labels = []
+    for account_name, group in aggregated.groupby('ACCOUNT_NAME'):
+        bar_positions = range(len(labels), len(labels) + len(group))
+        positions.extend(bar_positions)
+        labels.extend(group['PROFILE'])
+
+        # Plot bars
+        ax.barh(
+            bar_positions,
+            group['CURRENT_ASSET_VALUE'],
+            label=account_name,
+            alpha=0.7
+        )
+
+        # Add annotations for CURRENT_ASSET_VALUE and percentage of total
+        for i, row in enumerate(group.itertuples()):
+            current_asset_value = row.CURRENT_ASSET_VALUE
+            percentage_of_total = (current_asset_value / total_asset_value) * 100
+
+            # Determine if the bar is long enough for inside text
+            if current_asset_value > total_asset_value * 0.05:  # If the bar length is > 5% of total
+                annotation_position = current_asset_value - (total_asset_value * 0.01)  # Slight padding
+                ha_align = 'right'  # Align text to the right
+                color = 'white'  # Use contrasting color
+            else:
+                annotation_position = current_asset_value + 0.1  # Outside text
+                ha_align = 'left'
+                color = 'black'
+
+            ax.text(
+                annotation_position, bar_positions[i],
+                f'{current_asset_value:,.0f} ({percentage_of_total:.2f}%)',
+                va='center', ha=ha_align, fontsize=10, color=color
+            )
+
+    # Customizing the plot
+    ax.set_yticks(positions)
+    ax.set_yticklabels(labels)
+    ax.set_xlabel('Current Asset Value', fontsize=12)
+    ax.set_title('Asset Value by Account and Profile', fontsize=14)
+    ax.legend(title='Account Name', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Corrected tight layout usage
+    plt.tight_layout()
 
     return fig

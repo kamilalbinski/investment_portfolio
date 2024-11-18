@@ -8,7 +8,7 @@ import datetime
 
 from manage_calculations import calculate_current_values, calculate_portfolio_over_time
 from views.custom_views import default_pivot, default_table
-from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time
+from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_return_rate_by_account
 from manage_database_functions import refresh_market, refresh_fx
 from manage_pipeline_functions import run_etl_processes
 from utils.database_setup import get_temporary_owners_list
@@ -77,7 +77,7 @@ class PortfolioManager:
         self.plot_choice = tk.IntVar()
         self.plot_choice.set(1)  # Default to the first plot option
 
-        self.plot_option_a = ctk.CTkRadioButton(self.left_frame, text="Plot Current Portfolio Value",
+        self.plot_option_a = ctk.CTkRadioButton(self.left_frame, text="Plot Portfolio Value by Category",
                                                 variable=self.plot_choice, value=1)
         self.plot_option_a.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
@@ -86,8 +86,15 @@ class PortfolioManager:
                                                 value=2)
         self.plot_option_b.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
+        self.plot_option_c = ctk.CTkRadioButton(self.left_frame, text="Plot Current Asset Values Per Account",
+                                                variable=self.plot_choice,
+                                                value=3)
+        self.plot_option_c.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
+
+
         self.plot_option_a.configure(command=self.on_selection_change)
         self.plot_option_b.configure(command=self.on_selection_change)
+        self.plot_option_c.configure(command=self.on_selection_change)
 
         # Dark Mode Switch
         self.dark_mode_switch = ctk.CTkSwitch(self.left_frame, text="Dark Mode", command=self.toggle_dark_mode)
@@ -162,7 +169,7 @@ class PortfolioManager:
         file_name = f"{formatted_date}_output.csv"
 
         # Determine what data to save based on the current plot selection
-        if self.plot_choice.get() == 1:
+        if self.plot_choice.get() == 1 or self.plot_choice.get() == 3:
             # Save current portfolio values
             data = default_table(self.plot_data, owner)
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
@@ -220,6 +227,12 @@ class PortfolioManager:
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing asset value over time for Portfolio: {owner}")
+        elif self.plot_choice.get() == 3:
+            fig = plot_return_rate_by_account(self.plot_data)
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
+            canvas_widget = canvas.get_tk_widget()
+            canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            self.append_log(f"Drawing current assets return rate by account: {owner}")
         else:
             self.append_log("No plot selected")
 
