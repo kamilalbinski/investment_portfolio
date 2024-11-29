@@ -8,7 +8,7 @@ import datetime
 
 from manage_calculations import calculate_current_values, calculate_portfolio_over_time
 from views.custom_views import default_pivot, default_table
-from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_return_rate_by_account
+from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
 from manage_database_functions import refresh_market, refresh_fx
 from manage_pipeline_functions import run_etl_processes
 from utils.database_setup import get_temporary_owners_list
@@ -228,7 +228,7 @@ class PortfolioManager:
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing asset value over time for Portfolio: {owner}")
         elif self.plot_choice.get() == 3:
-            fig = plot_return_rate_by_account(self.plot_data)
+            fig = plot_asset_value_by_account(self.plot_data)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
