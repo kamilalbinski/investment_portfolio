@@ -1,23 +1,18 @@
-from manage_calculations import *
-from views.custom_views import *
-from visualization.dynamic_plots import *
-from manage_database_functions import *
-from manage_pipeline_functions import *
-from utils.database_setup import get_temporary_owners_list
+import yfinance as yf
 
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import messagebox, scrolledtext, ttk
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import datetime
-import utils.config
+# Specify the stock ticker
+ticker = 'AAPL'  # Replace with your desired stock ticker
+stock = yf.Ticker(ticker)
 
-import sqlite3
-import os
+# Get the historical data including dividends
+dividends = stock.history(period="max", actions=True)['Dividends']
+#
+# # Display dividend information
+# if not dividends.empty:
+#     print(dividends)
+# else:
+#     print("No dividend data available for this ticker.")
 
-# from utils.database_setup import create_tables_from_schemas
-# create_tables_from_schemas()
-
-
-run_etl_processes()
+dividend_df = dividends.reset_index()
+dividend_df.columns = ['Date', 'Dividend']
+print(dividend_df[dividend_df['Dividend']>0])
