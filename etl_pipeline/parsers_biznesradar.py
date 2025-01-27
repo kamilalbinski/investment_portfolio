@@ -72,6 +72,7 @@ def download_adjusted_prices_from_biznesradar(df):
 
     adjusted_prices_df = adjusted_prices_df[['ASSET_ID', 'DATE', 'PRICE']]
     adjusted_prices_df['DATE'] = pd.to_datetime(adjusted_prices_df['DATE'])
+    adjusted_prices_df.sort_values(by='DATE',ascending=True, inplace=True)
     adjusted_prices_df['DATE'] = adjusted_prices_df['DATE'].dt.strftime('%Y-%m-%d 00:00:00')
 
     return adjusted_prices_df

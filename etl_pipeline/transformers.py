@@ -3,6 +3,7 @@ from utils.database_setup import fetch_data_from_database, get_asset_ids_from_da
 from etl_pipeline.parsers_yfinance import download_adjusted_prices_from_yfinance
 from etl_pipeline.parsers_biznesradar import download_adjusted_prices_from_biznesradar
 from etl_pipeline.etl_utils import *
+from calculations.calculations_edo import calculate_bulk_edo_values
 
 
 def transform_holdings(new_data, is_edo=False):
@@ -15,9 +16,9 @@ def transform_holdings(new_data, is_edo=False):
 
     if not is_edo:
         second_key = 'MARKET'
-        assets_df.drop(columns=['PRICE_DATE'], inplace=True)
+        assets_df.drop(columns=['INITIAL_DATE'], inplace=True)
     else:
-        second_key = 'PRICE_DATE'
+        second_key = 'INITIAL_DATE'
         assets_df.drop(columns=['MARKET'], inplace=True)
 
     merged_df = pd.merge(new_data_df, assets_df, on=['NAME', second_key], how='left')
@@ -161,8 +162,8 @@ def get_new_assets(assets_df, latest_prices_df, table_type='PRICES'):
         print('Unknown table type')
         new_assets = assets_df[(assets_df['MARKET'] != str(0))].copy()
 
-    new_assets = new_assets[(~new_assets['ASSET_ID'].isin(latest_prices_list))][['ASSET_ID', 'PRICE_DATE']]
-    new_assets.rename(columns={'PRICE_DATE': 'DATE'}, inplace=True)
+    new_assets = new_assets[(~new_assets['ASSET_ID'].isin(latest_prices_list))][['ASSET_ID', 'INITIAL_DATE']]
+    new_assets.rename(columns={'INITIAL_DATE': 'DATE'}, inplace=True)
     new_assets['DATE'] = pd.to_datetime(new_assets['DATE']) + pd.Timedelta(days=-1)
     new_assets['DATE'] = new_assets['DATE'].dt.strftime('%Y-%m-%d 00:00:00')
     return new_assets
@@ -178,23 +179,26 @@ def transform_prices_for_refresh(table_type='PRICES'):
     # Handle assets not included in table
     new_assets_df = get_new_assets(assets_df, latest_prices_df, table_type=table_type)
 
-    is_multiple_source = False
-
     if not new_assets_df.empty:
         latest_prices_df = pd.concat([latest_prices_df, new_assets_df], axis=0)
         print('New asset(s) found. Added to database')
 
-    prices_to_refresh_df = pd.merge(latest_prices_df, assets_df[['ASSET_ID', 'NAME', 'PRICE_SOURCE']],
+    prices_to_refresh_df = pd.merge(latest_prices_df, assets_df[['ASSET_ID', 'NAME', 'PRICE_SOURCE','INITIAL_DATE']],
                                     on='ASSET_ID', how='inner')
 
     prices_from_yfinance_df = prices_to_refresh_df[(prices_to_refresh_df['PRICE_SOURCE'] == 'YFINANCE')].drop(
         columns=['NAME', 'PRICE_SOURCE']).copy()
 
+    prices_from_tbpl_df = prices_to_refresh_df[(prices_to_refresh_df['PRICE_SOURCE'] == 'PLGOV')].drop(
+        columns=['PRICE_SOURCE']).copy()
+
     prices_from_biznesradar_df = prices_to_refresh_df[(prices_to_refresh_df['PRICE_SOURCE'] == 'BIZNESRADAR')].drop(
         columns=['PRICE_SOURCE']).copy()
 
+    all_prices = []
+
     # Merge latest prices and yfinance mapping
-    #    if prices_from_yfinance_df is not None:
+
     if not prices_from_yfinance_df.empty:
         mappings_yfinance_df = fetch_data_from_database('MAPPING_YFINANCE')
         merged_yfinance_df = pd.merge(prices_from_yfinance_df, mappings_yfinance_df, on='ASSET_ID', how='inner')
@@ -202,16 +206,30 @@ def transform_prices_for_refresh(table_type='PRICES'):
         # transform into yfinance extractor-viable format
         merged_yfinance_df['DATE'] = pd.to_datetime(merged_yfinance_df['DATE'])
         merged_yfinance_df.drop(columns='PRICE', inplace=True)
-        final_prices_yfinance_df = download_adjusted_prices_from_yfinance(merged_yfinance_df)
+        new_prices_yfinance_df = download_adjusted_prices_from_yfinance(merged_yfinance_df)
+
+        if new_prices_yfinance_df:
+            merged = pd.merge(new_prices_yfinance_df, prices_from_yfinance_df, on=['ASSET_ID', 'DATE'], how='left', indicator=True)
+
+            final_prices_yfinance_df = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge','PRICE_y', 'INITIAL_DATE'])
+            final_prices_yfinance_df = final_prices_yfinance_df.rename(columns={'PRICE_x': 'PRICE'})
+            all_prices.append(final_prices_yfinance_df)
+
+    if not prices_from_tbpl_df.empty:
+        final_prices_tbpl_df = calculate_bulk_edo_values(prices_from_tbpl_df)
+        all_prices.append(final_prices_tbpl_df)
 
     if not prices_from_biznesradar_df.empty:
         final_prices_biznesradar_df = download_adjusted_prices_from_biznesradar(prices_from_biznesradar_df)
+        all_prices.append(final_prices_biznesradar_df)
 
-        is_multiple_source = True
+    if len(all_prices) >= 1:
+        final_prices_df = pd.concat(all_prices, axis=0)
 
-    if not is_multiple_source:
-        final_prices_df = final_prices_yfinance_df.copy()
+        return final_prices_df
+
     else:
-        final_prices_df = pd.concat([final_prices_yfinance_df, final_prices_biznesradar_df], axis=0)
+        print(f'{table_type.title()} are up to date')
 
-    return final_prices_df
+
+

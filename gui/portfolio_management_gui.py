@@ -7,7 +7,7 @@ import os
 import datetime
 
 from manage_calculations import calculate_current_values, calculate_portfolio_over_time
-from views.custom_views import default_pivot, default_table
+from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
 from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
 from manage_database_functions import refresh_market, refresh_fx
 from manage_pipeline_functions import run_etl_processes
@@ -175,7 +175,7 @@ class PortfolioManager:
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
         elif self.plot_choice.get() == 2:
             # Save portfolio value over time
-            data = self.plot_data
+            data = aggregated_values_pivoted(None, owner) # aggregated_values currently not in use
             file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_output.csv")
 
         # Save the data to a CSV file
@@ -193,6 +193,7 @@ class PortfolioManager:
 
         # Get required data
 
+        #TODO verify performance: current value calcs vs stored in table. Create table if needed
         df, asset_value, _, _, return_value, return_rate = calculate_current_values(owner, return_totals=True)
 
         self.total_asset_value.configure(text=f"{asset_value:,}")

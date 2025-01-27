@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import os
 
+
 from utils.config import DATABASE_FILE
 
 
@@ -42,9 +43,10 @@ def fetch_data_from_database(table_name, query=None):
 
 
 def get_asset_ids_from_database():
-    query = 'SELECT NAME, ASSET_ID, MARKET, PRICE_DATE FROM ASSETS'
+#    query = 'SELECT NAME, ASSET_ID, MARKET FROM ASSETS'
+    query = 'SELECT NAME, ASSET_ID, MARKET, INITIAL_DATE FROM ASSETS'
     df = fetch_data_from_database(table_name='ASSETS', query=query)
-    df['PRICE_DATE'] = pd.to_datetime(df['PRICE_DATE'])
+    df['INITIAL_DATE'] = pd.to_datetime(df['INITIAL_DATE'])
     return df
 
 
@@ -99,55 +101,36 @@ def get_all_currency_asset_ids():
     df = fetch_data_from_database(table_name='ASSETS', query=query)
     return df
 
+def get_current_portfolio_data(table_name, account_owner=None):
+    query = f'''
+    SELECT *
+    FROM {table_name} 
+    '''
+    if account_owner:
+        query += f'WHERE ACCOUNT_OWNER = "{account_owner}"\n'
+
+    return fetch_data_from_database(table_name, query=query)
+
+def get_daily_portfolio_data(table_name, account_owner=None):
+    query = f'''
+    SELECT *
+    FROM {table_name} 
+    '''
+    if account_owner:
+        query += f'WHERE ACCOUNT_OWNER = "{account_owner}"\n'
+    else:
+        query += f'WHERE ACCOUNT_OWNER = "None"\n'
+
+    return fetch_data_from_database(table_name, query=query)
 
 def query_all_transactions(account_owner=None):
     # Connect to the SQLite database
     conn = sqlite3.connect(DATABASE_FILE)
-#    t.ACCOUNT_ID,
-    # Dynamically build the SELECT part of the query
-    select_columns = """
-            a.ACCOUNT_ID, 
-            a.ACCOUNT_NAME,
-            t.TIMESTAMP,
 
-            t.ASSET_ID,
-            y.YFINANCE_ID,
-            y.PRICE_MULTIPLIER,
-            t.BUY_SELL,
-            t.VOLUME,
-            t.PRICE,
-            t.TRANSACTION_FEE,
-            t.ASSET_CURRENCY,
-            t.BASE_CURRENCY,
-            t.FX_RATE
-    """
+    query = '''SELECT * FROM TRANSACTIONS_ALL'''
 
-    # Include a.ACCOUNT_OWNER in the selection if account_owner is not provided
-    if not account_owner:
-        select_columns = "a.ACCOUNT_OWNER, " + select_columns
-
-    # Construct the base part of the query using the dynamically built SELECT part
-    query = f"""
-        SELECT 
-            {select_columns}
-        FROM 
-            ACCOUNTS a
-        LEFT JOIN 
-            TRANSACTIONS t ON a.ACCOUNT_ID = t.ACCOUNT_ID
-        LEFT JOIN 
-            ASSETS s ON t.ASSET_ID = s.ASSET_ID
-        LEFT JOIN 
-            MAPPING_YFINANCE y ON t.ASSET_ID = y.ASSET_ID
-        WHERE 
-            1=1
-    """
-
-    # Add condition for account_owner if provided
     if account_owner:
-        query += f'AND a.ACCOUNT_OWNER = "{account_owner}"\n'
-
-    # Add the final part of the WHERE clause
-    query += f'AND s.MARKET != 0'
+        query += f'WHERE a.ACCOUNT_OWNER = "{account_owner}"\n'
 
     # Use Pandas to read the SQL query result into a DataFrame
     df = pd.read_sql_query(query, conn)
@@ -156,6 +139,8 @@ def query_all_transactions(account_owner=None):
     conn.close()
 
     return df
+
+
 
 
 def query_all_holdings(account_owner=None, listed=True):
@@ -216,8 +201,8 @@ def query_all_holdings(account_owner=None, listed=True):
     if account_owner:
         query += f'AND a.ACCOUNT_OWNER = "{account_owner}"\n'
 
-    # Add the final part of the WHERE clause
-    query += f'AND s.MARKET {sign} 0'
+    # # Add the final part of the WHERE clause
+    # query += f'AND s.MARKET {sign} 0'
 
     # Use Pandas to read the SQL query result into a DataFrame
     df = pd.read_sql_query(query, conn)

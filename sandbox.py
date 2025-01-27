@@ -1,18 +1,18 @@
-import yfinance as yf
+from manage_calculations import calculate_current_values, calculate_portfolio_over_time
+from views.custom_views import default_pivot, default_table
+from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
+from manage_database_functions import refresh_market, refresh_fx
+from manage_pipeline_functions import run_etl_processes
+from utils.database_setup import get_temporary_owners_list
 
-# Specify the stock ticker
-ticker = 'AAPL'  # Replace with your desired stock ticker
-stock = yf.Ticker(ticker)
 
-# Get the historical data including dividends
-dividends = stock.history(period="max", actions=True)['Dividends']
+# Example usage of the new function
+# input_df = pd.DataFrame({
+#     'ASSET_ID': [1, 2],
+#     'LATEST_PRICE_DATE': ['2023-01-01', '2023-06-01'],
+#     'INITIAL_DATE': ['2022-01-01', '2022-06-01']
+# })
+# result = calculate_values_for_range(input_df)
+# print(result)
 #
-# # Display dividend information
-# if not dividends.empty:
-#     print(dividends)
-# else:
-#     print("No dividend data available for this ticker.")
-
-dividend_df = dividends.reset_index()
-dividend_df.columns = ['Date', 'Dividend']
-print(dividend_df[dividend_df['Dividend']>0])
+# refresh_fx()

@@ -47,7 +47,11 @@ def download_adjusted_prices_from_yfinance(df):
                     'DATE': stock_date.strftime('%Y-%m-%d 00:00:00'),
                     'PRICE': round(adj_close, 4)
                 })
-    results_df = pd.concat([pd.DataFrame([row]) for row in data_rows], ignore_index=True)
+    try:
+        results_df = pd.concat([pd.DataFrame([row]) for row in data_rows], ignore_index=True)
+    except ValueError:
+        results_df = None
+
     return results_df
 
 

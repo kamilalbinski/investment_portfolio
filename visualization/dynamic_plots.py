@@ -58,16 +58,16 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
     # Create figure and axes for the plot
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Plot the 'Total Portfolio Value'
-    ax.fill_between(portfolio_data['TIMESTAMP'], portfolio_data['Total Portfolio Value'], color="skyblue", alpha=0.4)
-    ax.plot(portfolio_data['TIMESTAMP'], portfolio_data['Total Portfolio Value'], label='Total Portfolio Value',
+    # Plot the 'AGGREGATED_VALUE'
+    ax.fill_between(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], color="skyblue", alpha=0.4)
+    ax.plot(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], label='AGGREGATED_VALUE',
             color="Slateblue", alpha=0.6)
 
     # Include buy & sell information on the plot. Use 1-day delay for better visibility.
     for _, transaction in transactions_data.iterrows():
         closest_date = portfolio_data.iloc[
             (portfolio_data['TIMESTAMP'] - (transaction['TIMESTAMP'] - pd.Timedelta(days=1))).abs().argsort()[:1]]
-        transaction_value = closest_date['Total Portfolio Value'].values[0]
+        transaction_value = closest_date['AGGREGATED_VALUE'].values[0]
 
         if transaction['BUY_SELL'] == 'B':
             ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='green', marker='^', alpha=0.7,

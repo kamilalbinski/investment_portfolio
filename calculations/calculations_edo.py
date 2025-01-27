@@ -41,10 +41,12 @@ def get_edo_details(asset_id):  # get_edo_general_details(asset_id, volume?):
     table = 'TB_PL'
     query = f'SELECT * FROM {table} WHERE "NAME" = "{edo_name}"'
 
-    edo_df = fetch_data_from_database(table, query).merge(edo_df[['NAME', 'CURRENT_PRICE',
-                                                                  'PRICE_DATE']], on='NAME', how='inner')
+    edo_df = fetch_data_from_database(table, query).merge(edo_df[['NAME','CURRENT_PRICE', 'INITIAL_DATE']], on='NAME', how='inner')
+    # edo_df = fetch_data_from_database(table, query).merge(edo_df[['NAME', 'CURRENT_PRICE',
+    #                                                               'PRICE_DATE']], on='NAME', how='inner')
 
-    edo_df['PRICE_DATE'] = pd.to_datetime(edo_df['PRICE_DATE']).dt.tz_localize(None)
+
+    edo_df['INITIAL_DATE'] = pd.to_datetime(edo_df['INITIAL_DATE']).dt.tz_localize(None)
 
     return edo_df
 
@@ -75,7 +77,7 @@ def get_cpi_for_period(first_date, to_date):
     return final_df
 
 
-def calculate_edo_aggregated_value(from_date, to_date, edo_df, cpi_df, return_table=False):
+def calculate_edo_aggregated_value(from_date, to_date, edo_df, cpi_df):
     """
     Calculates the current value of a treasury bond over a specified period using CPI adjustments.
 
@@ -148,6 +150,7 @@ def calculate_edo_aggregated_value(from_date, to_date, edo_df, cpi_df, return_ta
                 and merged_df.index[i].day == from_date.day:
             merged_df.at[merged_df.index[i], 'BASE_VALUE'] = merged_df.at[merged_df.index[i - 1], 'AGGREGATED_VALUE']
 
+
         # Calculate daily interest
         daily_interest = merged_df.at[merged_df.index[i], 'BASE_VALUE'] * merged_df.at[merged_df.index[i], 'DAILY_RATE']
 
@@ -159,39 +162,55 @@ def calculate_edo_aggregated_value(from_date, to_date, edo_df, cpi_df, return_ta
     # Drop the dummy date column as it's no longer needed
     merged_df = merged_df.drop(columns=['DUMMY_DATE'])
 
+    return merged_df
+
     # Return the final aggregated value or the detailed DataFrame based on the return_table flag
-    if not return_table:
-        return round(merged_df.iloc[-1]['AGGREGATED_VALUE'], 2)
-    else:
-        return merged_df
+    # if not return_table:
+    #     return round(merged_df.iloc[-1]['AGGREGATED_VALUE'], 2)
+    # else:
+    #     return merged_df
 
 
-def calculate_edo_values(edo_id, mode='daily', volume=1):
+def calculate_edo_values(edo_id, latest_price_date):
     # Get EDO details from ASSETS table in database
     edo_df = get_edo_details(edo_id)  # currently lookup via ASSET_ID supported
 
     # Get dates required for calculation table
-    purchase_date = edo_df['PRICE_DATE'].iloc[0]
+    purchase_date = edo_df['INITIAL_DATE'].iloc[0]
     today_date = pd.Timestamp.today().normalize().tz_localize(None)
-
+    latest_price_date = pd.to_datetime(latest_price_date)
     # Get CPI yearly updates from CPI table
     cpi_table = get_cpi_for_period(purchase_date, today_date)
 
     # Create a calculations table, toggle return_table based on mode
-    return_table = True# if mode == 'daily' else False
-    final_df = calculate_edo_aggregated_value(purchase_date, today_date, edo_df, cpi_table, return_table=return_table)
+    # return_table = True# if mode == 'daily' else False
 
-    if mode == 'daily':
-        # Adjust by volume and reformat for daily data
-        final_df['AGGREGATED_VALUE'] *= volume
-        final_df = final_df.rename(columns={'AGGREGATED_VALUE': edo_df['NAME'].iloc[0]}
-                                   ).drop(columns=['CPI', 'FIXED_ANNUAL_RATE', 'TOTAL_ANNUAL_RATE',
-                                                   'DAILY_RATE', 'BASE_VALUE', 'DAILY_INTEREST'])
+    #TODO - continue calculations from last price, instead of calculating from initial date
 
-    else:
-        final_df = final_df[['AGGREGATED_VALUE']].tail(1).rename(columns={'AGGREGATED_VALUE': edo_id})
+    final_df = calculate_edo_aggregated_value(purchase_date, today_date, edo_df, cpi_table)#, return_table=return_table)
 
-    final_df.index.names = ['TIMESTAMP']
+    final_df.reset_index(inplace=True)
+    final_df['ASSET_ID'] = edo_id
+    final_df.rename(columns={'AGGREGATED_VALUE':'PRICE'}, inplace=True)
+    final_df['PRICE'] = final_df['PRICE'].round(2)
+
+    # final_df['DATE'] = final_df['index']
+
+    final_df = final_df[['ASSET_ID','DATE','PRICE']].copy()
+
+    final_df = final_df[pd.to_datetime(final_df['DATE'])>latest_price_date]
+
+
+
+    # if mode == 'daily':
+    #     # Adjust by volume and reformat for daily data
+    #     final_df['AGGREGATED_VALUE'] *= volume
+    #     final_df = final_df.rename(columns={'AGGREGATED_VALUE': edo_df['NAME'].iloc[0]}
+    #                                ).drop(columns=['CPI', 'FIXED_ANNUAL_RATE', 'TOTAL_ANNUAL_RATE',
+    #                                                'DAILY_RATE', 'BASE_VALUE', 'DAILY_INTEREST'])
+    #
+    # else:
+    #     final_df = final_df[['AGGREGATED_VALUE']].tail(1).rename(columns={'AGGREGATED_VALUE': edo_id})
 
     return final_df
 
@@ -199,12 +218,13 @@ def calculate_bulk_edo_values(edo_data, mode='daily'):
     edos_df_list = []
     for index, row in edo_data.iterrows():
         asset_id = row['ASSET_ID']
-        volume = row['VOLUME']
-        edo_df = calculate_edo_values(asset_id, mode=mode, volume=volume)
+        latest_price_date = row['DATE']
+        # volume = row['VOLUME']
+        edo_df = calculate_edo_values(asset_id, latest_price_date)
         edos_df_list.append(edo_df)
 
-    edos_df = pd.concat(edos_df_list, axis=1).fillna(0)
-    edos_df.reset_index(inplace=True)
-    edos_df['TIMESTAMP'] = pd.to_datetime(edos_df['TIMESTAMP'])
+    edos_df = pd.concat(edos_df_list, axis=0).fillna(0)
+    # edos_df.reset_index(inplace=True)
+    # edos_df['TIMESTAMP'] = pd.to_datetime(edos_df['TIMESTAMP'])
 
     return edos_df
