@@ -208,7 +208,7 @@ def transform_prices_for_refresh(table_type='PRICES'):
         merged_yfinance_df.drop(columns='PRICE', inplace=True)
         new_prices_yfinance_df = download_adjusted_prices_from_yfinance(merged_yfinance_df)
 
-        if new_prices_yfinance_df:
+        if not new_prices_yfinance_df.empty:
             merged = pd.merge(new_prices_yfinance_df, prices_from_yfinance_df, on=['ASSET_ID', 'DATE'], how='left', indicator=True)
 
             final_prices_yfinance_df = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge','PRICE_y', 'INITIAL_DATE'])
@@ -225,6 +225,9 @@ def transform_prices_for_refresh(table_type='PRICES'):
 
     if len(all_prices) >= 1:
         final_prices_df = pd.concat(all_prices, axis=0)
+
+        final_prices_df['DATE'] = pd.to_datetime(final_prices_df['DATE'], errors='coerce')
+        final_prices_df['DATE'] = final_prices_df['DATE'].dt.strftime('%Y-%m-%d 00:00:00')
 
         return final_prices_df
 

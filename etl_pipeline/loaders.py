@@ -158,11 +158,15 @@ def upload_to_table(new_data, table, action='append'):
 
     # Connect to the SQLite database
     conn = sqlite3.connect(DATABASE_FILE)
-    new_data_df = pd.DataFrame(new_data)
+    new_data_df = pd.DataFrame(new_data).reset_index(drop=True)
+
+
 
     # Depending on the action, append or replace data in the table
     if action == 'replace':
         conn.execute(f"DELETE FROM {table};")  # Clear the table before inserting new data
+
+
 
     # Use pandas to_sql function to insert data
     new_data_df.to_sql(table, conn, if_exists=action, index=False, method='multi')
