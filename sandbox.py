@@ -15,4 +15,4 @@ from utils.database_setup import get_temporary_owners_list
 # result = calculate_values_for_range(input_df)
 # print(result)
 #
-# refresh_fx()
+refresh_market()
