@@ -59,6 +59,7 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Plot the 'AGGREGATED_VALUE'
+
     ax.fill_between(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], color="skyblue", alpha=0.4)
     ax.plot(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], label='AGGREGATED_VALUE',
             color="Slateblue", alpha=0.6)

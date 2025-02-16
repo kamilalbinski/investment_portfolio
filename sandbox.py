@@ -1,10 +1,9 @@
-from manage_calculations import calculate_current_values, calculate_portfolio_over_time
+from manage_calculations import calculate_current_values
 from views.custom_views import default_pivot, default_table
 from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
-from manage_database_functions import refresh_market, refresh_fx
+from manage_database_functions import *
 from manage_pipeline_functions import run_etl_processes
-from utils.database_setup import get_temporary_owners_list
-
+from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
 
 # Example usage of the new function
 # input_df = pd.DataFrame({
@@ -15,4 +14,7 @@ from utils.database_setup import get_temporary_owners_list
 # result = calculate_values_for_range(input_df)
 # print(result)
 #
-refresh_market()
+
+#
+
+refresh_calculated_tables()

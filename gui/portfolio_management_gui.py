@@ -6,12 +6,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 import datetime
 
-from manage_calculations import calculate_current_values, calculate_portfolio_over_time
+from manage_calculations import calculate_current_values
 from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
 from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
-from manage_database_functions import refresh_market, refresh_fx
+from manage_database_functions import refresh_market, refresh_fx, refresh_calculated_tables
 from manage_pipeline_functions import run_etl_processes
-from utils.database_setup import get_temporary_owners_list
+from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
 
 
 class PortfolioManager:
@@ -142,6 +142,7 @@ class PortfolioManager:
         try:
             refresh_market()
             refresh_fx()
+            refresh_calculated_tables()
             self.append_log("Database refreshed successfully!")
         except ValueError as e:
             self.append_log(f"Error during database refresh: {e}")
@@ -221,7 +222,7 @@ class PortfolioManager:
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing current asset value of Portfolio: {owner}")
         elif self.plot_choice.get() == 2:
-            portfolio_data, transactions_data = calculate_portfolio_over_time(owner)
+            portfolio_data, transactions_data = get_portfolio_over_time(owner)
             self.plot_data = portfolio_data
             fig = plot_portfolio_over_time(portfolio_data, transactions_data)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section

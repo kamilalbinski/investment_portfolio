@@ -185,7 +185,7 @@ def calculate_edo_values(edo_id, latest_price_date):
     # Create a calculations table, toggle return_table based on mode
     # return_table = True# if mode == 'daily' else False
 
-    #TODO - continue calculations from last price, instead of calculating from initial date
+    #TODO - continue calculations from last price, instead of calculating from initial date. edit 2025/02/16 - what if wrong calcs?
 
     final_df = calculate_edo_aggregated_value(purchase_date, today_date, edo_df, cpi_table)#, return_table=return_table)
 

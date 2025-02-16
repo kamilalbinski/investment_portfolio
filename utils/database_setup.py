@@ -1,8 +1,10 @@
 import sqlite3
+
+import pandas
 import pandas as pd
 import os
 
-
+from calculations.calculations_main import preprocess_transactions
 from utils.config import DATABASE_FILE
 
 
@@ -50,31 +52,31 @@ def get_asset_ids_from_database():
     return df
 
 
-def get_latest_prices_from_database(table='PRICES'):
-    query = f"""
-            WITH LATEST_{table} AS (
-                SELECT
-                    ASSET_ID,
-                    DATE,
-                    PRICE,
-                    ROW_NUMBER() OVER(PARTITION BY ASSET_ID ORDER BY DATE DESC) AS rn
-                FROM
-                    {table}
-            )
-            SELECT
-                ASSET_ID,
-                DATE,
-                PRICE
-            FROM
-                LATEST_{table}
-            WHERE
-                rn = 1;
-            """
-    df = fetch_data_from_database(table_name=table, query=query)
-    df['DATE'] = pd.to_datetime(df['DATE'])
-    df['PRICE'] = df['PRICE'].round(4)
-
-    return df
+# def get_latest_prices_from_database(table='PRICES'):
+#     query = f"""
+#             WITH LATEST_{table} AS (
+#                 SELECT
+#                     ASSET_ID,
+#                     DATE,
+#                     PRICE,
+#                     ROW_NUMBER() OVER(PARTITION BY ASSET_ID ORDER BY DATE DESC) AS rn
+#                 FROM
+#                     {table}
+#             )
+#             SELECT
+#                 ASSET_ID,
+#                 DATE,
+#                 PRICE
+#             FROM
+#                 LATEST_{table}
+#             WHERE
+#                 rn = 1;
+#             """
+#     df = fetch_data_from_database(table_name=table, query=query)
+#     df['DATE'] = pd.to_datetime(df['DATE'])
+#     df['PRICE'] = df['PRICE'].round(4)
+#
+#     return df
 
 
 def get_price_data(price_table_name, asset_ids, start_date, end_date):
@@ -227,3 +229,16 @@ def get_temporary_owners_list(table='ACCOUNTS'):
     conn.close()
 
     return owner_names
+
+
+def get_portfolio_over_time(owner=None):
+
+    # transactions_df = query_all_transactions(owner)
+    transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
+    transactions_df = preprocess_transactions(transactions_df)
+
+    portfolio_df = get_daily_portfolio_data('AGGREGATED_PORTFOLIO_VALUES', account_owner=owner)
+    portfolio_df['TIMESTAMP'] = pd.to_datetime(portfolio_df['TIMESTAMP']).dt.date
+    portfolio_df['AGGREGATED_VALUE'] = portfolio_df['AGGREGATED_VALUE'].astype('float64')
+
+    return portfolio_df, transactions_df

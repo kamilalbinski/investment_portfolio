@@ -2,8 +2,8 @@
 from etl_pipeline.transformers import *
 from etl_pipeline.parsers_yfinance import *
 from etl_pipeline.loaders import upload_to_table
-from utils.database_setup import get_latest_prices_from_database
-
+from utils.database_setup import get_temporary_owners_list
+from manage_calculations import calculate_all_portfolios_over_time
 import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="yfinance")
@@ -27,5 +27,11 @@ def refresh_fx():
     # update_latest_prices(table_type=table)
     print(f'FX Refresh completed')
 
+def refresh_calculated_tables():
+    # TODO - refresh for all existing portfolios
+    owners = get_temporary_owners_list()[:-1]#temporary solution
+    #owners.append(None)
+    portfolio_df = calculate_all_portfolios_over_time(owners)
+    upload_to_table(portfolio_df, 'AGGREGATED_VALUES', action='replace')
+    print(f'Calculation Tables Refresh completed')
 
-#TODO refresh portfolio value data

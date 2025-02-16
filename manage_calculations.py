@@ -3,12 +3,10 @@ from datetime import datetime
 from calculations.calculations_edo import *
 from calculations.calculations_main import calculate_average_purchase_price, preprocess_transactions, adjust_prices, \
     calculate_asset_daily_values
-from utils.database_setup import get_daily_portfolio_data ### temporary
-from etl_pipeline.loaders import upload_to_table ### temporary
 
 import warnings
 
-from utils.database_setup import get_price_data, get_all_currency_asset_ids, get_current_portfolio_data, query_all_transactions, query_all_holdings
+from utils.database_setup import get_price_data, get_all_currency_asset_ids, get_current_portfolio_data
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="yfinance")
 
@@ -65,6 +63,7 @@ def calculate_current_values(owner=None, return_totals=False):
         return final_df
 
 
+
 def calculate_portfolio_over_time(owner=None):
     # transactions_df = query_all_transactions(owner)
     transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
@@ -87,11 +86,18 @@ def calculate_portfolio_over_time(owner=None):
 
     portfolio_df = pd.concat(all_daily_values, axis=0)
 
-    #TODO move temporary upload to refresh table
-    upload_to_table(portfolio_df, 'AGGREGATED_VALUES', action='replace')
+    portfolio_df['AGGREGATED_VALUE'] = portfolio_df['AGGREGATED_VALUE'].round(2)
 
-    portfolio_df = get_daily_portfolio_data('AGGREGATED_PORTFOLIO_VALUES', account_owner=owner)
+    return portfolio_df
 
-    portfolio_df['TIMESTAMP'] = pd.to_datetime(portfolio_df['TIMESTAMP']).dt.date
+def calculate_all_portfolios_over_time(owners):
 
-    return portfolio_df, transactions_df
+    all_porfolios = []
+
+    for owner in owners:
+        portfolio_df = calculate_portfolio_over_time(owner=owner)
+        all_porfolios.append(portfolio_df)
+
+    all_porfolios_df = pd.concat(all_porfolios, keys=owners).reset_index(drop=True)
+
+    return all_porfolios_df
