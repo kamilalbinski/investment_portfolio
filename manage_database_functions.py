@@ -2,7 +2,7 @@
 from etl_pipeline.transformers import *
 from etl_pipeline.parsers_yfinance import *
 from etl_pipeline.loaders import upload_to_table
-from utils.database_setup import get_temporary_owners_list
+from utils.database_setup import get_temporary_owners_list, backup_database
 from manage_calculations import calculate_all_portfolios_over_time
 import warnings
 
@@ -35,3 +35,12 @@ def refresh_calculated_tables():
     upload_to_table(portfolio_df, 'AGGREGATED_VALUES', action='replace')
     print(f'Calculation Tables Refresh completed')
 
+def refresh_all(backup=True):
+
+    print(f'Starting full refresh')
+    if backup:
+        backup_database()
+    refresh_market()
+    refresh_fx()
+    refresh_calculated_tables()
+    print(f'Refresh completed')

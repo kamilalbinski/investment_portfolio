@@ -9,7 +9,7 @@ import datetime
 from manage_calculations import calculate_current_values
 from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
 from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
-from manage_database_functions import refresh_market, refresh_fx, refresh_calculated_tables
+from manage_database_functions import refresh_all
 from manage_pipeline_functions import run_etl_processes
 from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
 
@@ -91,10 +91,16 @@ class PortfolioManager:
                                                 value=3)
         self.plot_option_c.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
+        self.plot_option_d = ctk.CTkRadioButton(self.left_frame, text="Plot Current Asset Values Per Profile",
+                                                variable=self.plot_choice,
+                                                value=4)
+        self.plot_option_d.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
+
 
         self.plot_option_a.configure(command=self.on_selection_change)
         self.plot_option_b.configure(command=self.on_selection_change)
         self.plot_option_c.configure(command=self.on_selection_change)
+        self.plot_option_d.configure(command=self.on_selection_change)
 
         # Dark Mode Switch
         self.dark_mode_switch = ctk.CTkSwitch(self.left_frame, text="Dark Mode", command=self.toggle_dark_mode)
@@ -140,9 +146,7 @@ class PortfolioManager:
     def gui_refresh_db(self):
         self.append_log("Starting database refresh...")
         try:
-            refresh_market()
-            refresh_fx()
-            refresh_calculated_tables()
+            refresh_all()
             self.append_log("Database refreshed successfully!")
         except ValueError as e:
             self.append_log(f"Error during database refresh: {e}")
@@ -170,7 +174,7 @@ class PortfolioManager:
         file_name = f"{formatted_date}_output.csv"
 
         # Determine what data to save based on the current plot selection
-        if self.plot_choice.get() == 1 or self.plot_choice.get() == 3:
+        if self.plot_choice.get() == 1 or self.plot_choice.get() == 3 or self.plot_choice.get() == 4:
             # Save current portfolio values
             data = default_table(self.plot_data, owner)
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
@@ -230,11 +234,17 @@ class PortfolioManager:
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing asset value over time for Portfolio: {owner}")
         elif self.plot_choice.get() == 3:
-            fig = plot_asset_value_by_account(self.plot_data)
+            fig = plot_asset_value_by_account(self.plot_data, drill_down_profile=False)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing current assets return rate by account: {owner}")
+        elif self.plot_choice.get() == 4:
+            fig = plot_asset_value_by_account(self.plot_data, drill_down_profile=True)
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
+            canvas_widget = canvas.get_tk_widget()
+            canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            self.append_log(f"Drawing current assets return rate by profile: {owner}")
         else:
             self.append_log("No plot selected")
 

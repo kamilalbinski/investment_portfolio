@@ -87,32 +87,62 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
     return fig
 
 
-def plot_asset_value_by_account(data):
+def plot_asset_value_by_account(data, drill_down_profile=True):
+    """
+    Plots the sum of CURRENT_ASSET_VALUE grouped by ACCOUNT_NAME,
+    optionally drilling down by PROFILE if drill_down_profile=True.
+    """
+
     df = pd.DataFrame(data)
 
-    # Aggregate CURRENT_ASSET_VALUE by ACCOUNT_NAME and PROFILE
-    aggregated = df.groupby(['ACCOUNT_NAME', 'PROFILE']).agg(
-        CURRENT_ASSET_VALUE=('CURRENT_ASSET_VALUE', 'sum')
-    ).reset_index()
+    # Decide which columns to group by depending on the drill_down_profile flag
+    group_cols = ['ACCOUNT_NAME']
+    if drill_down_profile:
+        group_cols.append('PROFILE')  # Include 'PROFILE' only if we want a deeper breakdown
 
-    # Calculate the total asset value for percentage calculation
+    # Group the data
+    aggregated = (
+        df.groupby(group_cols, dropna=False)
+        .agg(CURRENT_ASSET_VALUE=('CURRENT_ASSET_VALUE', 'sum'))
+        .reset_index()
+    )
+
+    # Total asset value (for percentage calculations)
     total_asset_value = aggregated['CURRENT_ASSET_VALUE'].sum()
 
-    # Sort by ACCOUNT_NAME and CURRENT_ASSET_VALUE in descending order
-    aggregated = aggregated.sort_values(by=['ACCOUNT_NAME', 'CURRENT_ASSET_VALUE'], ascending=[True, False])
+    # Sort the data so bars are displayed in an intuitive order
+    # We sort by *all* grouping columns ascending, except the asset value desc
+    aggregated = aggregated.sort_values(
+        by=group_cols + ['CURRENT_ASSET_VALUE'],
+        ascending=[True] * len(group_cols) + [False]
+    )
 
-    # Plotting
+    # Create the figure
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Initialize y-position for bars
+    # We'll iterate over the distinct ACCOUNT_NAME groups in the aggregated data
+    # and plot sub-bars for each PROFILE if applicable
     positions = []
     labels = []
-    for account_name, group in aggregated.groupby('ACCOUNT_NAME'):
-        bar_positions = range(len(labels), len(labels) + len(group))
-        positions.extend(bar_positions)
-        labels.extend(group['PROFILE'])
+    current_pos = 0  # Running "y-position" for bars
 
-        # Plot bars
+    for account_name, group in aggregated.groupby('ACCOUNT_NAME'):
+        # If we have profiles, each account_name group may contain multiple rows (one per profile).
+        # Otherwise, there's just one row (the sum for that account).
+
+        # If we *did* include PROFILE in grouping, we’ll use them as sub-labels
+        # Otherwise, just label by the account_name itself
+        sublabels = None
+        if drill_down_profile and 'PROFILE' in group.columns:
+            sublabels = group['PROFILE'].tolist()
+        else:
+            sublabels = [account_name]  # Single bar for the entire account
+
+        bar_positions = range(current_pos, current_pos + len(group))
+        positions.extend(bar_positions)
+        labels.extend(sublabels)
+
+        # Plot the bars for this (ACCOUNT_NAME) group
         ax.barh(
             bar_positions,
             group['CURRENT_ASSET_VALUE'],
@@ -120,35 +150,48 @@ def plot_asset_value_by_account(data):
             alpha=0.7
         )
 
-        # Add annotations for CURRENT_ASSET_VALUE and percentage of total
-        for i, row in enumerate(group.itertuples()):
-            current_asset_value = row.CURRENT_ASSET_VALUE
+        # Add text annotations for each bar
+        for i, row_ in enumerate(group.itertuples()):
+            current_asset_value = row_.CURRENT_ASSET_VALUE
             percentage_of_total = (current_asset_value / total_asset_value) * 100
+            bar_ypos = list(bar_positions)[i]
 
-            # Determine if the bar is long enough for inside text
-            if current_asset_value > total_asset_value * 0.05:  # If the bar length is > 5% of total
-                annotation_position = current_asset_value - (total_asset_value * 0.01)  # Slight padding
-                ha_align = 'right'  # Align text to the right
-                color = 'white'  # Use contrasting color
+            # Decide if annotation should be inside or outside the bar
+            if current_asset_value > total_asset_value * 0.05:
+                # Place text inside the bar
+                annotation_position = current_asset_value - (total_asset_value * 0.01)
+                ha_align = 'right'
+                color = 'white'
             else:
-                annotation_position = current_asset_value + 0.1  # Outside text
+                # Place text just outside the bar
+                annotation_position = current_asset_value + (total_asset_value * 0.01)
                 ha_align = 'left'
                 color = 'black'
 
             ax.text(
-                annotation_position, bar_positions[i],
+                annotation_position,
+                bar_ypos,
                 f'{current_asset_value:,.0f} ({percentage_of_total:.2f}%)',
-                va='center', ha=ha_align, fontsize=10, color=color
+                va='center',
+                ha=ha_align,
+                fontsize=10,
+                color=color
             )
 
-    # Customizing the plot
+        # After plotting all sub-bars (profiles) for this account, advance our position counter
+        current_pos += len(group)
+
+    # Configure axis labels and plot title
     ax.set_yticks(positions)
     ax.set_yticklabels(labels)
-    ax.set_xlabel('Current Asset Value', fontsize=12)
-    ax.set_title('Asset Value by Account and Profile', fontsize=14)
-    ax.legend(title='Account Name', bbox_to_anchor=(1.05, 1), loc='upper left')
 
-    # Corrected tight layout usage
+    ax.set_xlabel('Current Asset Value', fontsize=12)
+    if drill_down_profile:
+        ax.set_title('Asset Value by Account and Profile', fontsize=14)
+    else:
+        ax.set_title('Asset Value by Account', fontsize=14)
+
+    ax.legend(title='Account Name', bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
 
     return fig

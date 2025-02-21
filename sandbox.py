@@ -4,6 +4,7 @@ from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfoli
 from manage_database_functions import *
 from manage_pipeline_functions import run_etl_processes
 from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
+import yfinance as yf
 
 # Example usage of the new function
 # input_df = pd.DataFrame({
@@ -15,6 +16,3 @@ from utils.database_setup import get_temporary_owners_list, get_portfolio_over_t
 # print(result)
 #
 
-#
-
-refresh_calculated_tables()

@@ -3,10 +3,34 @@ import sqlite3
 import pandas
 import pandas as pd
 import os
+import shutil
+import datetime
 
 from calculations.calculations_main import preprocess_transactions
 from utils.config import DATABASE_FILE
 
+
+def backup_database():
+    """
+    Creates a backup copy of the current database file in the same folder,
+    with a filename pattern like: database_YYYYMMDD_HHMMSS.db
+    """
+    # Extract directory, base name, and extension from DATABASE_FILE
+    directory = os.path.dirname(DATABASE_FILE)
+    base_name = os.path.splitext(os.path.basename(DATABASE_FILE))[0]  # e.g., 'database'
+    ext = os.path.splitext(os.path.basename(DATABASE_FILE))[1]  # e.g., '.db'
+
+    # Build timestamp
+    now_str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    # Construct new filename with time suffix
+    backup_filename = f"{base_name}_{now_str}{ext}"
+    backup_path = os.path.join(directory, backup_filename)
+
+    # Copy the file
+    shutil.copy(DATABASE_FILE, backup_path)
+
+    print(f"Database has been backed up to {backup_path}")
 
 def execute_ddl(ddl_statement):
     conn = sqlite3.connect(DATABASE_FILE)
@@ -50,33 +74,6 @@ def get_asset_ids_from_database():
     df = fetch_data_from_database(table_name='ASSETS', query=query)
     df['INITIAL_DATE'] = pd.to_datetime(df['INITIAL_DATE'])
     return df
-
-
-# def get_latest_prices_from_database(table='PRICES'):
-#     query = f"""
-#             WITH LATEST_{table} AS (
-#                 SELECT
-#                     ASSET_ID,
-#                     DATE,
-#                     PRICE,
-#                     ROW_NUMBER() OVER(PARTITION BY ASSET_ID ORDER BY DATE DESC) AS rn
-#                 FROM
-#                     {table}
-#             )
-#             SELECT
-#                 ASSET_ID,
-#                 DATE,
-#                 PRICE
-#             FROM
-#                 LATEST_{table}
-#             WHERE
-#                 rn = 1;
-#             """
-#     df = fetch_data_from_database(table_name=table, query=query)
-#     df['DATE'] = pd.to_datetime(df['DATE'])
-#     df['PRICE'] = df['PRICE'].round(4)
-#
-#     return df
 
 
 def get_price_data(price_table_name, asset_ids, start_date, end_date):
