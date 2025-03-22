@@ -15,4 +15,3 @@ import yfinance as yf
 # result = calculate_values_for_range(input_df)
 # print(result)
 #
-

@@ -220,7 +220,7 @@ def parse_pkotb(file_path):
     df.columns.values[4] = "CURRENT_VALUE"
     df.columns.values[5] = "MATURITY_DATE"
 
-    df['PRICE_DATE'] = pd.to_datetime(df['MATURITY_DATE']) - DateOffset(years=10)
+    df['INITIAL_DATE'] = pd.to_datetime(df['MATURITY_DATE']) - DateOffset(years=10)
     df['MARKET'] = '0'
     df['ACCOUNT_ID'] = os.path.basename(os.path.dirname(file_path))
     df['REFRESH_DATE'] = f'{date_string} 00:00:00'

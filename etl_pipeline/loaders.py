@@ -8,7 +8,7 @@ def add_default_values(data, is_edo=False):
     """ default value for a new record"""
     df = data.copy()
     if not is_edo:
-        df['PRICE_DATE'] = pd.to_datetime('2021-06-12 00:00:00')  # Dummy date to allow refreshing
+        df['INITIAL_DATE'] = pd.to_datetime('2021-06-12 00:00:00')  # Dummy date to allow refreshing
     else:
         # Default values for EDO instrument
         df['MARKET'] = 0
@@ -16,7 +16,6 @@ def add_default_values(data, is_edo=False):
         df['SUB_CATEGORY'] = "BONDS"
         df['CURRENT_PRICE'] = 100.00
         df['CURRENCY'] = "PLN"
-        # df['PRICE_DATE'] = df['PRICE_DATE'].astype('str')
 
     return df
 
@@ -28,7 +27,7 @@ def add_new_asset(first_key, second_key, is_edo=False):
     if not is_edo:
         column_to_lookup = 'MARKET'
     else:
-        column_to_lookup = 'PRICE_DATE'
+        column_to_lookup = 'INITIAL_DATE'
 
     # Check if the asset already exists in the ASSETS table
     query = f"SELECT ASSET_ID FROM ASSETS WHERE NAME = '{first_key}' AND {column_to_lookup} = '{second_key}'"
@@ -169,7 +168,7 @@ def upload_to_table(new_data, table, action='append'):
 
 
     # Use pandas to_sql function to insert data
-    new_data_df.to_sql(table, conn, if_exists=action, index=False, method='multi')
+    new_data_df.to_sql(table, conn, if_exists=action, index=False, method='multi', chunksize=500)
 
     # Commit the transaction and close the connection
     conn.commit()
