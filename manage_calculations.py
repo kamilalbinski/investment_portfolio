@@ -101,3 +101,18 @@ def calculate_all_portfolios_over_time(owners):
     all_porfolios_df = pd.concat(all_porfolios, keys=owners).reset_index(drop=True)
 
     return all_porfolios_df
+
+
+def calculate_return_rate_per_asset(owner=None, aggregation_column='NAME'):
+
+    df = calculate_current_values(owner=owner)
+
+    df = df.groupby([aggregation_column])[
+        ['PURCHASE_ASSET_VALUE_BASE', 'PURCHASE_ASSET_VALUE', 'CURRENT_ASSET_VALUE', 'CURRENT_RETURN_VALUE_BASE',
+         'CURRENT_RETURN_VALUE', 'RETURN_RATE_BASE', 'RETURN_RATE']].sum()
+
+    df['RETURN_RATE_BASE'] = (df['CURRENT_ASSET_VALUE'] / (df['CURRENT_ASSET_VALUE'] - df['CURRENT_RETURN_VALUE_BASE']) - 1).multiply(100).round(2)
+    df['RETURN_RATE'] = (df['CURRENT_ASSET_VALUE'] / (df['CURRENT_ASSET_VALUE'] - df['CURRENT_RETURN_VALUE']) - 1).multiply(100).round(2)
+
+    return df[['CURRENT_RETURN_VALUE', 'RETURN_RATE']]
+

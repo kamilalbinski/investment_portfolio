@@ -6,9 +6,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 import datetime
 
-from manage_calculations import calculate_current_values
+from manage_calculations import calculate_current_values, calculate_return_rate_per_asset
 from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
-from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account
+from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account, plot_return_values
 from manage_database_functions import refresh_all
 from manage_pipeline_functions import run_etl_processes
 from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
@@ -77,30 +77,37 @@ class PortfolioManager:
         self.plot_choice = tk.IntVar()
         self.plot_choice.set(1)  # Default to the first plot option
 
-        self.plot_option_a = ctk.CTkRadioButton(self.left_frame, text="Plot Portfolio Value by Category",
+        self.plot_option_a = ctk.CTkRadioButton(self.left_frame, text="Portfolio Value by Category",
                                                 variable=self.plot_choice, value=1)
         self.plot_option_a.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
-        self.plot_option_b = ctk.CTkRadioButton(self.left_frame, text="Plot Portfolio Value Over Time",
+        self.plot_option_b = ctk.CTkRadioButton(self.left_frame, text="Portfolio Value Over Time",
                                                 variable=self.plot_choice,
                                                 value=2)
         self.plot_option_b.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
-        self.plot_option_c = ctk.CTkRadioButton(self.left_frame, text="Plot Current Asset Values Per Account",
+        self.plot_option_c = ctk.CTkRadioButton(self.left_frame, text="Current Asset Values Per Account",
                                                 variable=self.plot_choice,
                                                 value=3)
         self.plot_option_c.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
-        self.plot_option_d = ctk.CTkRadioButton(self.left_frame, text="Plot Current Asset Values Per Profile",
+        self.plot_option_d = ctk.CTkRadioButton(self.left_frame, text="Current Asset Values Per Profile",
                                                 variable=self.plot_choice,
                                                 value=4)
         self.plot_option_d.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
+
+
+        self.plot_option_e = ctk.CTkRadioButton(self.left_frame, text="Portfolio Return Per Asset",
+                                                variable=self.plot_choice,
+                                                value=5)
+        self.plot_option_e.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
 
         self.plot_option_a.configure(command=self.on_selection_change)
         self.plot_option_b.configure(command=self.on_selection_change)
         self.plot_option_c.configure(command=self.on_selection_change)
         self.plot_option_d.configure(command=self.on_selection_change)
+        self.plot_option_e.configure(command=self.on_selection_change)
 
         # Dark Mode Switch
         self.dark_mode_switch = ctk.CTkSwitch(self.left_frame, text="Dark Mode", command=self.toggle_dark_mode)
@@ -174,7 +181,7 @@ class PortfolioManager:
         file_name = f"{formatted_date}_output.csv"
 
         # Determine what data to save based on the current plot selection
-        if self.plot_choice.get() == 1 or self.plot_choice.get() == 3 or self.plot_choice.get() == 4:
+        if self.plot_choice.get() == 1 or self.plot_choice.get() >= 3:
             # Save current portfolio values
             data = default_table(self.plot_data, owner)
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
@@ -245,6 +252,14 @@ class PortfolioManager:
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing current assets return rate by profile: {owner}")
+        elif self.plot_choice.get() == 5:
+            return_by_asset_data = calculate_return_rate_per_asset(owner, aggregation_column='NAME')
+            self.plot_data = return_by_asset_data
+            fig = plot_return_values(self.plot_data)
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
+            canvas_widget = canvas.get_tk_widget()
+            canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            self.append_log(f"Drawing return by assset: {owner}")
         else:
             self.append_log("No plot selected")
 

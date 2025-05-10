@@ -195,3 +195,50 @@ def plot_asset_value_by_account(data, drill_down_profile=True):
     plt.tight_layout()
 
     return fig
+
+# Creating the new function
+def plot_return_values(df, sort_by='CURRENT_RETURN_VALUE'):
+    """
+    Plots a horizontal bar plot for current return values and return rates.
+    Supports both positive and negative values using a two-sided bar layout.
+
+    """
+
+    # Sort by the chosen column for better visualization
+    # Sort and calculate bar sizes based on the chosen column
+    df = df.sort_values(by=sort_by, ascending=True)
+    bar_sizes = df[sort_by]
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Plot horizontal bars using the chosen sort column for size
+    bars = ax.barh(df.index, bar_sizes,
+                   color=np.where(bar_sizes >= 0, 'green', 'red'), alpha=0.7)
+
+    # Adding text labels (value and rate) on the bars
+    for bar, (index, row) in zip(bars, df.iterrows()):
+        value = row['CURRENT_RETURN_VALUE']
+        rate = row['RETURN_RATE']
+        text_pos = bar.get_width()
+        alignment = 'left' if text_pos < 0 else 'right'
+        ax.text(
+            text_pos - (text_pos * 0.01) if text_pos > 0 else text_pos + (text_pos * 0.01),
+            bar.get_y() + bar.get_height() / 2,
+            f'{value:,.2f} ({rate:.2f}%)',
+            va='center',
+            ha=alignment,
+            fontsize=10,
+            color='black' #if text_pos > 0 else 'black'
+        )
+
+    # Axis labels and title
+    ax.set_title(f'Return Values by Asset {df.index.name.capitalize() if df.index.name else "Index"}', fontsize=14)
+    ax.set_xlabel('Return Value' if sort_by == 'CURRENT_RETURN_VALUE' else 'Return Rate', fontsize=12)
+    ax.set_ylabel(f'Asset {df.index.name.capitalize() if df.index.name else "Index"}', fontsize=12)
+
+    # Grid for better visibility of values
+    ax.grid(True, axis='x', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    return fig
