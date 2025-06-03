@@ -1,6 +1,5 @@
-# functions to refresh price data, fx data etc
 from etl_pipeline.transformers import *
-from etl_pipeline.parsers_yfinance import *
+from etl_pipeline.parsers_webpages import parse_cpi_pl
 from etl_pipeline.loaders import upload_to_table
 from utils.database_setup import get_temporary_owners_list, backup_database
 from manage_calculations import calculate_all_portfolios_over_time
@@ -35,6 +34,16 @@ def refresh_calculated_tables():
     upload_to_table(portfolio_df, 'AGGREGATED_VALUES', action='replace')
     print(f'Calculation Tables Refresh completed')
 
+def refresh_cpi():
+    # Get Customer Price Index from Polish Statistical Office GUS webpage
+    table = 'CPI_PL'
+    current_cpi_df = fetch_data_from_database(table)
+    new_cpi_df = transform_cpi_columns(parse_cpi_pl())
+    new_records = get_new_cpi(current_df=current_cpi_df, new_df=new_cpi_df)
+    if not new_records.empty:
+        upload_to_table(new_records, table, action='append')
+    print(f'CPI Refresh completed')
+
 def refresh_all(backup=True):
 
     print(f'Starting full refresh')
@@ -42,5 +51,6 @@ def refresh_all(backup=True):
         backup_database()
     refresh_market()
     refresh_fx()
+    refresh_cpi()
     refresh_calculated_tables()
     print(f'Refresh completed')

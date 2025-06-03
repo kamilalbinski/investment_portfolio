@@ -1,7 +1,7 @@
 from etl_pipeline.loaders import add_new_asset
 from utils.database_setup import fetch_data_from_database, get_asset_ids_from_database
 from etl_pipeline.parsers_yfinance import download_adjusted_prices_from_yfinance
-from etl_pipeline.parsers_biznesradar import download_adjusted_prices_from_biznesradar
+from etl_pipeline.parsers_webpages import download_adjusted_prices_from_biznesradar
 from etl_pipeline.etl_utils import *
 from calculations.calculations_edo import calculate_bulk_edo_values
 
@@ -98,6 +98,38 @@ def transform_mbank_columns(df):
     df['BASE_CURRENCY'] = df['BASE_CURRENCY'].astype('str')
 
     return df
+
+def transform_cpi_columns(df):
+    df = df.copy()
+
+    df['DATE'] = pd.to_datetime(df[['YEAR', 'MONTH']].assign(day=1))
+    df = transform_decimal_separators(df, ['VALUE'])
+    df.dropna(subset='VALUE',inplace=True)
+
+    df = df[['DATE', 'VALUE']]
+
+    df.rename(columns={'VALUE':'CPI'}, inplace=True)
+
+    df.sort_values(by='DATE', ascending=True, inplace=True)
+
+    df['DATE'] = df['DATE'].dt.strftime('%Y-%m-%d 00:00:00')
+
+    return df
+
+def get_new_cpi(current_df, new_df):
+    if not current_df.empty:
+        key_columns = ['DATE', 'CPI']
+        merged_df = pd.merge(
+            new_df,
+            current_df[key_columns],
+            how='left',
+            on=key_columns,
+            indicator=True
+        )
+        new_records = merged_df[merged_df['_merge'] == 'left_only'].drop(columns=['_merge'])
+        return new_records
+    else:
+        return None
 
 
 def transform_transactions(new_data):

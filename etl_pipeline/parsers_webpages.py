@@ -1,9 +1,10 @@
-
 from bs4 import BeautifulSoup
 import requests
 from etl_pipeline.etl_utils import *
+import os
 
-GENERIC_URL = 'https://www.biznesradar.pl/notowania-historyczne/'
+biznesradar_url = 'https://www.biznesradar.pl/notowania-historyczne/'
+cpi_url = 'https://stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/4741/1/1/miesieczne_wskazniki_cen_towarow_i_uslug_konsumpcyjnych_od_1982_roku.csv'
 
 # Function to fetch and parse the webpage content
 
@@ -64,7 +65,7 @@ def download_adjusted_prices_from_biznesradar(df):
         asset_id = row['ASSET_ID']
         ticker = row['NAME']
         date = row['DATE']
-        url = f'{GENERIC_URL}{ticker}'
+        url = f'{biznesradar_url}{ticker}'
         raw_table_df = fetch_and_parse_table(url)
         adjusted_prices.append(adjust_price_bizradar_df(df=raw_table_df, asset_id=asset_id, min_date=date))
 
@@ -76,3 +77,36 @@ def download_adjusted_prices_from_biznesradar(df):
     adjusted_prices_df['DATE'] = adjusted_prices_df['DATE'].dt.strftime('%Y-%m-%d 00:00:00')
 
     return adjusted_prices_df
+
+
+def parse_cpi_pl() -> tuple[pd.DataFrame, str, str]:
+    """
+    Downloads and parses CPI data from Polish statistical office.
+    Returns cleaned DataFrame, source tag, and file_type.
+    """
+
+    temp_file = 'cpi_temp.csv'
+
+    # Download file
+
+    response = requests.get(cpi_url)
+    with open(temp_file, 'wb') as f:
+        f.write(response.content)  # Raw bytes written
+
+    # Read CSV
+    df = pd.read_csv(temp_file, encoding="ISO-8859-2", delimiter=';') # TODO fix encoding
+
+    df.columns.values[0] = "VARIABLE"
+    df.columns.values[1] = "REGION"
+    df.columns.values[2] = "TYPE"
+    df.columns.values[3] = "YEAR"
+    df.columns.values[4] = "MONTH"
+    df.columns.values[5] = "VALUE"
+    df.columns.values[6] = "FLAG"
+
+    type_value = 'Analogiczny miesišc poprzedniego roku = 100'
+    filtered_df = df[df['TYPE']==type_value].reset_index()
+
+    os.remove(temp_file)
+
+    return filtered_df

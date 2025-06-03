@@ -253,13 +253,13 @@ class PortfolioManager:
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing current assets return rate by profile: {owner}")
         elif self.plot_choice.get() == 5:
-            return_by_asset_data = calculate_return_rate_per_asset(owner, aggregation_column='NAME')
+            return_by_asset_data = calculate_return_rate_per_asset(owner, aggregation_column='PROFILE')
             self.plot_data = return_by_asset_data
             fig = plot_return_values(self.plot_data)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing return by assset: {owner}")
+            self.append_log(f"Drawing return by asset: {owner}")
         else:
             self.append_log("No plot selected")
 
