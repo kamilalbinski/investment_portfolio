@@ -9,6 +9,3 @@ import yfinance as yf
 from utils.config import ROOT_PATH
 import os
 
-
-
-run_etl_processes()
