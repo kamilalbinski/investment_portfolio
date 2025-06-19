@@ -4,8 +4,11 @@ from datetime import datetime
 
 from etl_pipeline.parsers_files import parse_mbank, parse_pkotb
 from etl_pipeline.loaders import load
-from etl_pipeline.transformers import transform_holdings, transform
-from utils.config import MBANK_FOLDER, PKOTB_FOLDER
+from etl_pipeline.transformers import transform
+from utils.config import MBANK_FOLDER, PKOTB_FOLDER, DOCS_WITH_ATTACHMENTS
+from utils.misc_func import pdf_extractor
+from pdfminer.pdfdocument import PDFPasswordIncorrect
+from pdfminer.pdfparser import PDFSyntaxError
 
 ''' GENERIC FUNCTIONS'''
 
@@ -40,6 +43,7 @@ def process_file(file_path, parser, transformer, loader, saver):
 
     """
     try:
+
         # raw_data, is_edo = parser(file_path)
         raw_data, source, file_type = parser(file_path)
         transformed_data = transformer(raw_data, source, file_type)
@@ -49,11 +53,14 @@ def process_file(file_path, parser, transformer, loader, saver):
         saver(file_path)
 
     except Exception as e:
-        # logger.error(f"Error processing file {file_name}: {e}")
-        print(f"Error processing file {file_path}: {e}")
+        if isinstance(getattr(e, '__context__', None), PDFPasswordIncorrect):
+            print(f"Error processing file {file_path}: PDF password required. Please verify PDFs extraction list.")
+        else:
+            # logger.error(f"Error processing file {file_name}: {e}")
+            print(f"Error processing file {file_path}: {e}")
 
 
-def loop_through_files(folder_path, parser, transformer, loader, saver, ignore_folders=None):
+def loop_through_files(folder_path, parser, transformer, loader, saver, extract_list=None, ignore_folders=None):
     """
     Loops through each file in a specified folder and processes it through a given ETL pipeline,
     while ignoring specified folders like 'archive'.
@@ -69,6 +76,14 @@ def loop_through_files(folder_path, parser, transformer, loader, saver, ignore_f
         for file_name in files:
             file_path = os.path.join(root, file_name)
             print(f'Loading file: {file_name}')
+            if any(extract in file_name for extract in extract_list):
+                outer_file_path = os.path.join(root, file_name)
+                if file_name.endswith('.pdf'):
+                    file_name = pdf_extractor(file_path)
+                else:
+                    raise ValueError("Unsupported file format.pdf")
+                file_path = os.path.join(root, file_name)
+                saver(outer_file_path)
             process_file(file_path, parser, transformer, loader, saver)
 
 
@@ -77,9 +92,9 @@ def etl_pipeline(process_name, folder_path, parser, transformer, loader, saver):
     Executes an ETL pipeline for processing files within a specified folder.
 
     """
-    print(f"\n### Running ETL process: {process_name}")
-    loop_through_files(folder_path, parser, transformer, loader, saver)
-    print(f"### Completed ETL process: {process_name}")
+    # print(f"\n### Running ETL process: {process_name}")
+    loop_through_files(folder_path, parser, transformer, loader, saver, DOCS_WITH_ATTACHMENTS)
+    # print(f"### Completed ETL process: {process_name}")
 
 
 ''' SPECIFIC FUNCTIONS'''
@@ -91,14 +106,14 @@ def run_etl_processes():
 
     """
     processes = {
-        'Upload holdings for mBank': {
+        'Upload transactions for mBank': {
             'folder_path': MBANK_FOLDER,
             'parser': parse_mbank,
             'transformer': transform,
             'loader': load,
             'saver': save_file
         },
-        'Upload holdings for PKO Treasury Bonds': {
+        'Upload transactions for PKO Treasury Bonds': {
             'folder_path': PKOTB_FOLDER,
             'parser': parse_pkotb,
             'transformer': transform,

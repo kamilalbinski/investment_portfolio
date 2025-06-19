@@ -30,7 +30,7 @@ def backup_database():
     # Copy the file
     shutil.copy(DATABASE_FILE, backup_path)
 
-    print(f"Database has been backed up to {backup_path}")
+    print(f"Database backup: {backup_path}")
 
 def execute_ddl(ddl_statement):
     conn = sqlite3.connect(DATABASE_FILE)

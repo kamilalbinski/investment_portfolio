@@ -6,35 +6,6 @@ from etl_pipeline.etl_utils import *
 from calculations.calculations_edo import calculate_bulk_edo_values
 
 
-def transform_holdings(new_data, is_edo=False):
-    """Gets asset_id from Asset table based on ticker and market. If not found, calls function to add new asset_id"""
-
-    new_data_df = pd.DataFrame(new_data)
-    assets_df = get_asset_ids_from_database()
-
-    #  Merge new data with existing data based on columns 'ticker' and 'market'
-
-    if not is_edo:
-        second_key = 'MARKET'
-        assets_df.drop(columns=['INITIAL_DATE'], inplace=True)
-    else:
-        second_key = 'INITIAL_DATE'
-        assets_df.drop(columns=['MARKET'], inplace=True)
-
-    merged_df = pd.merge(new_data_df, assets_df, on=['NAME', second_key], how='left')
-    # If there is any missing Asset_ID, add to database, return new asset_id and use in transformation
-
-    if merged_df['ASSET_ID'].isna().values.any():
-        for index, row in merged_df.iterrows():
-            asset_id = add_new_asset(row['NAME'], row[second_key], is_edo)
-            merged_df.at[index, 'ASSET_ID'] = asset_id
-
-    merged_df = merged_df[['ASSET_ID', 'VOLUME', 'ACCOUNT_ID', 'REFRESH_DATE']]
-
-    merged_df = transform_holdings_dtypes(merged_df)
-
-    return merged_df
-
 
 def transform_holdings_dtypes(data):
     df = data.copy()
@@ -48,7 +19,8 @@ def transform_holdings_dtypes(data):
 def transform_decimal_separators(df, column_list):
     df = df.copy()
     for column in column_list:
-        df[column] = df[column].str.replace(' ', '').str.replace(',', '.').astype('float64')
+        if df[column].dtype == 'object':
+            df[column] = df[column].str.replace(' ', '').str.replace(',', '.').astype('float64')
     return df
 
 
@@ -99,6 +71,22 @@ def transform_mbank_columns(df):
 
     return df
 
+def transform_pkotb_columns(df):
+    df = df.copy()
+
+    df = combine_transactions(df)
+
+    # Transform remaining columns
+    df.drop(columns=['NAME', 'MARKET', 'VALUE', 'INITIAL_DATE'], inplace=True)
+    df['VOLUME'] = df['VOLUME'].astype('int64')
+    df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    df['ACCOUNT_ID'] = df['ACCOUNT_ID'].astype('str')
+    df['ASSET_ID'] = df['ASSET_ID'].astype('int64')
+    df['ASSET_CURRENCY'] = df['ASSET_CURRENCY'].astype('str')
+    df['BASE_CURRENCY'] = df['BASE_CURRENCY'].astype('str')
+
+    return df
+
 def transform_cpi_columns(df):
     df = df.copy()
 
@@ -131,29 +119,85 @@ def get_new_cpi(current_df, new_df):
     else:
         return None
 
+def preprocess_mbank_pdf_transactions(new_data):
+    df = new_data.copy()
 
-def transform_transactions(new_data):
+    df.rename(columns={
+        'RYNEK':'MARKET',
+        'WALOR':'NAME',
+        'OFERTA':'BUY_SELL',
+        'LICZBA':'VOLUME',
+        'CENA':'PRICE',
+        'WARTOŚĆ':'VALUE',
+        'PROWIZJA':'TRANSACTION_FEE',
+        'KURS WALUTY':'FX_RATE',
+        'CZAS TRANSAKCJI':'TIMESTAMP',
+        'RACHUNEK':'ACCOUNT_ID',
+        'WŁAŚCICIEL':'ACCOUNT_OWNER' #TO DROP
+    },inplace=True)
+
+
+    df['ACCOUNT_ID'] = 'MB_' + df['ACCOUNT_ID']
+    df['FX_RATE'] = pd.to_numeric(df['FX_RATE'], errors='coerce').fillna(1).astype(float)
+    df['NAME'] = df['NAME'].str.split('–').str[0].str.strip()
+    df['MARKET'] = df['MARKET'].replace({
+        'WWA':'WWA-GPW'
+    })
+
+    df['TIMESTAMP'] = df['TIMESTAMP'].str.slice(0, 10) + ' ' + df['TIMESTAMP'].str.slice(10)
+    df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], format='%Y-%m-%d %H:%M:%S.%f').dt.floor('s')
+
+    df['ASSET_CURRENCY'] = df['PRICE'].str[-3:]
+
+    df['BASE_CURRENCY'] = 'PLN'
+    df['INITIAL_DATE'] = '1900-01-01' #placeholder
+    df['ASSET_ID'] = None
+
+    df['PRICE'] = df['PRICE'].str[:-3]
+    df['VALUE'] = df['VALUE'].str[:-3]
+    df['TRANSACTION_FEE'] = df['TRANSACTION_FEE'].str[:-3]
+    df['BUY_SELL'] = df['BUY_SELL'].str[0]
+
+    return df[['TIMESTAMP', 'ACCOUNT_ID', 'ASSET_ID', 'BUY_SELL', 'VOLUME', 'PRICE',
+                        'TRANSACTION_FEE', 'ASSET_CURRENCY', 'BASE_CURRENCY', 'VALUE',
+                        'NAME', 'MARKET', 'FX_RATE']]
+
+
+def transform_transactions(new_data, source, is_edo=False):
     """Gets asset_id from Asset table based on ticker and market. If not found, calls function to add new asset_id"""
 
     new_data_df = pd.DataFrame(new_data)
     assets_df = get_asset_ids_from_database()
 
+    if not is_edo:
+        second_key = 'MARKET'
+        assets_df.drop(columns=['INITIAL_DATE'], inplace=True)
+    else:
+        second_key = 'INITIAL_DATE'
+        assets_df.drop(columns=['MARKET'], inplace=True)
+
     column_order = new_data_df.columns.to_list()
 
     new_data_df.drop(columns='ASSET_ID', inplace=True)
+    # merged_df = pd.merge(new_data_df, assets_df, on=['NAME', 'MARKET'], how='left')
 
-    merged_df = pd.merge(new_data_df, assets_df, on=['NAME', 'MARKET'], how='left')
+    merged_df = pd.merge(new_data_df, assets_df, on=['NAME', second_key], how='left')
     # If there is any missing Asset_ID, add to database, return new asset_id and use in transformation
 
-    merged_df = merged_df[column_order]
+    # merged_df = merged_df[column_order]
 
     if merged_df['ASSET_ID'].isna().values.any():
         for index, row in merged_df.iterrows():
-            asset_id = add_new_asset(row['NAME'], row['MARKET'], is_edo=False)
+            asset_id = add_new_asset(row['NAME'], row[second_key], is_edo)
             merged_df.at[index, 'ASSET_ID'] = asset_id
 
+
     merged_df = merged_df[column_order]
-    merged_df = transform_mbank_columns(merged_df)
+
+    if source == 'mbank':
+        merged_df = transform_mbank_columns(merged_df)
+    elif source == 'pkotb':
+        merged_df = transform_pkotb_columns(merged_df)
 
     return merged_df
 
@@ -164,12 +208,14 @@ def transform(new_data, source, file_type):
     transformed_data = None
 
     if source == 'mbank':
-        if file_type == 'holdings':
-            transformed_data = transform_holdings(new_data, is_edo=False)
-        elif file_type == 'transactions':
-            transformed_data = transform_transactions(new_data)
+        if file_type == 'pdf':
+            preprocessed_new_data = preprocess_mbank_pdf_transactions(new_data)
+            transformed_data = transform_transactions(preprocessed_new_data, source, is_edo=False)
+        elif file_type == 'csv':
+            transformed_data = transform_transactions(new_data, source, is_edo=False)
+
     elif source == 'pkotb':
-        transformed_data = transform_holdings(new_data, is_edo=True)
+        transformed_data = transform_transactions(new_data, source, is_edo=True)
 
     return transformed_data
 

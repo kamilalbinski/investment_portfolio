@@ -15,7 +15,9 @@ def add_default_values(data, is_edo=False):
         df['CATEGORY'] = "BOND"
         df['SUB_CATEGORY'] = "BONDS"
         df['CURRENT_PRICE'] = 100.00
+        df['PROFILE'] = "PL Treasury Bonds"
         df['CURRENCY'] = "PLN"
+        df['PRICE_SOURCE'] = "PLGOV"
 
     return df
 
@@ -59,54 +61,6 @@ def add_new_asset(first_key, second_key, is_edo=False):
 
     return existing_asset_id
 
-
-def load_holdings(new_df):
-    # Ensure REFRESH_DATE is datetime for comparison
-
-    conn = sqlite3.connect(DATABASE_FILE)
-
-    # Read existing data from the HOLDINGS table
-    query = 'SELECT ASSET_ID, VOLUME, ACCOUNT_ID, REFRESH_DATE FROM HOLDINGS'
-
-    existing_df = pd.read_sql_query(query, conn)
-
-    existing_df['REFRESH_DATE'] = pd.to_datetime(existing_df['REFRESH_DATE'])
-    new_df['REFRESH_DATE'] = pd.to_datetime(new_df['REFRESH_DATE'])
-
-    # Find new or updated records in new_df
-    updated_records = pd.merge(new_df, existing_df, on="ACCOUNT_ID", how="left", suffixes=('_new', '_old'))
-
-    # Filter out new or more recent records
-    updated_records = updated_records[
-        (updated_records['REFRESH_DATE_new'] >= updated_records['REFRESH_DATE_old']) | updated_records[
-            'REFRESH_DATE_old'].isnull()]
-
-    # Drop old records from existing_df that need to be updated
-    old_df_filtered = existing_df[~existing_df['ACCOUNT_ID'].isin(updated_records['ACCOUNT_ID'])]
-
-    # Select the new or updated records to add to the old DataFrame
-    new_records_to_add = new_df[new_df['ACCOUNT_ID'].isin(updated_records['ACCOUNT_ID'])]
-
-    # Combine the old filtered DataFrame with the new or updated records
-    updated_df = pd.concat([old_df_filtered, new_records_to_add], ignore_index=True)
-
-    if not existing_df.equals(updated_df):
-        # Clear existing records in the HOLDINGS table
-        delta = abs(updated_df.shape[0] - existing_df.shape[0])
-        conn.execute("DELETE FROM HOLDINGS;")
-        # Append new data to the HOLDINGS table
-        updated_df.to_sql('HOLDINGS', conn, if_exists='append', index=False, method='multi')
-
-        # Commit the transaction\
-        print(f'Upload completed: {delta} new record(s) added to Database')
-
-    else:
-        # existing_holdings_df.to_sql('HOLDINGS', conn, if_exists='append', index=False, method='multi')
-        print('No changes required')
-
-    conn.close()
-
-
 def load_transactions(new_df):
     # Create a cursor object using the connection
 
@@ -119,8 +73,8 @@ def load_transactions(new_df):
     for row in new_df.itertuples(index=False):
         # Check if record exists
         query = """SELECT COUNT(*) FROM TRANSACTIONS 
-                   WHERE TIMESTAMP = ? AND ACCOUNT_ID = ? AND ASSET_ID = ?"""
-        cursor.execute(query, (row.TIMESTAMP, row.ACCOUNT_ID, row.ASSET_ID))
+                   WHERE TIMESTAMP = ? AND ACCOUNT_ID = ? AND ASSET_ID = ? AND BUY_SELL = ?"""
+        cursor.execute(query, (row.TIMESTAMP, row.ACCOUNT_ID, row.ASSET_ID, row.BUY_SELL))
         result = cursor.fetchone()
 
         if result[0] == 0:
@@ -144,10 +98,10 @@ def load_transactions(new_df):
 def load(new_data, file_type):
     """Function to manage load, depending on file type"""
 
-    if file_type == 'holdings':
-        load_holdings(new_data)
-    elif file_type == 'transactions':
-        load_transactions(new_data)
+    # if file_type == 'holdings':
+    #     load_holdings(new_data)
+    # elif file_type == 'transactions':
+    load_transactions(new_data)
 
 
 def upload_to_table(new_data, table, action='append'):
