@@ -1,0 +1,10 @@
+customtkinter
+matplotlib
+python-dotenv
+pandas
+yfinance
+numpy
+python-dateutil
+pdfplumber
+requests
+beautifulsoup4
