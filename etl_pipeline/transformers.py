@@ -62,7 +62,7 @@ def transform_mbank_columns(df):
     df = combine_transactions(df)
 
     # Transform remaining columns
-    df.drop(columns=['NAME', 'MARKET', 'VALUE'], inplace=True)
+    df.drop(columns=['NAME', 'MARKET', 'VALUE', 'INITIAL_DATE'], inplace=True)
     df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], format='%d.%m.%Y %H:%M:%S').dt.strftime('%Y-%m-%d %H:%M:%S')
     df['ACCOUNT_ID'] = df['ACCOUNT_ID'].astype('str')
     df['ASSET_ID'] = df['ASSET_ID'].astype('int64')
