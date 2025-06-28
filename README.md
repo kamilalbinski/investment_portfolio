@@ -6,7 +6,7 @@
 
 ## 🚀 Overview
 
-**Investment Portfolio Manager** is a full-featured desktop application and backend pipeline for tracking and analyzing personal investments. It supports automated data import from brokers/banks, return calculation, time series aggregation, and export-ready reporting — all managed through a user-friendly GUI or programmable CLI.
+**Investment Portfolio Manager** is a desktop application and backend pipeline for tracking and analyzing personal investments. It supports automated data import from brokers/banks, return calculation, time series aggregation, and export-ready reporting — all managed through a GUI or programmable CLI.
 
 ---
 
