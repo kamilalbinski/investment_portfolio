@@ -50,41 +50,90 @@ def plot_portfolio_percentage(data):
     return fig
 
 
+# def plot_portfolio_over_time(portfolio_data, transactions_data):
+#     # Convert 'TIMESTAMP' to datetime if it's not already
+#     portfolio_data['TIMESTAMP'] = pd.to_datetime(portfolio_data['TIMESTAMP'])
+#     transactions_data['TIMESTAMP'] = pd.to_datetime(transactions_data['TIMESTAMP'])
+#
+#     # Create figure and axes for the plot
+#     fig, ax = plt.subplots(figsize=(10, 6))
+#
+#     # Plot the 'AGGREGATED_VALUE'
+#
+#     ax.fill_between(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], color="skyblue", alpha=0.4)
+#     ax.plot(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], label='AGGREGATED_VALUE',
+#             color="Slateblue", alpha=0.6)
+#
+#     # Include buy & sell information on the plot. Use 1-day delay for better visibility.
+#     for _, transaction in transactions_data.iterrows():
+#         closest_date = portfolio_data.iloc[
+#             (portfolio_data['TIMESTAMP'] - (transaction['TIMESTAMP'] - pd.Timedelta(days=1))).abs().argsort()[:1]]
+#         transaction_value = closest_date['AGGREGATED_VALUE'].values[0]
+#
+#         if transaction['BUY_SELL'] == 'B':
+#             ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='green', marker='^', alpha=0.7,
+#                        label='Buy' if 'Buy' not in ax.get_legend_handles_labels()[1] else "")
+#         elif transaction['BUY_SELL'] == 'S':
+#             ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='red', marker='v', alpha=0.7,
+#                        label='Sell' if 'Sell' not in ax.get_legend_handles_labels()[1] else "")
+#
+#     ax.grid(True, axis='y', zorder=1, linestyle='--', )
+#
+#     ax.set_title('Portfolio Value Over Time', zorder=2)
+#     ax.set_xlabel('Date', zorder=2)
+#     ax.set_ylabel('Total Value', zorder=2)
+#     ax.legend()
+#
+#     return fig
+
 def plot_portfolio_over_time(portfolio_data, transactions_data):
-    # Convert 'TIMESTAMP' to datetime if it's not already
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    # Convert timestamps
     portfolio_data['TIMESTAMP'] = pd.to_datetime(portfolio_data['TIMESTAMP'])
     transactions_data['TIMESTAMP'] = pd.to_datetime(transactions_data['TIMESTAMP'])
 
-    # Create figure and axes for the plot
+    # Pivot to wide format: TIMESTAMP as index, SUB_CATEGORY as columns
+    pivot_df = portfolio_data.pivot_table(
+        index='TIMESTAMP',
+        columns='SUB_CATEGORY',
+        values='AGGREGATED_VALUE',
+        aggfunc='sum'
+    ).fillna(0).sort_index()
+
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Plot the 'AGGREGATED_VALUE'
+    # Use a nicer color palette with subtle edge lines
+    cmap = plt.get_cmap('tab10')
+    pivot_df.plot.area(ax=ax, alpha=0.85, colormap=cmap, linewidth=0.5)
 
-    ax.fill_between(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], color="skyblue", alpha=0.4)
-    ax.plot(portfolio_data['TIMESTAMP'], portfolio_data['AGGREGATED_VALUE'], label='AGGREGATED_VALUE',
-            color="Slateblue", alpha=0.6)
+    # Re-plot buy/sell markers (unchanged)
+    total_value = pivot_df.sum(axis=1)
 
-    # Include buy & sell information on the plot. Use 1-day delay for better visibility.
     for _, transaction in transactions_data.iterrows():
-        closest_date = portfolio_data.iloc[
-            (portfolio_data['TIMESTAMP'] - (transaction['TIMESTAMP'] - pd.Timedelta(days=1))).abs().argsort()[:1]]
-        transaction_value = closest_date['AGGREGATED_VALUE'].values[0]
+        closest_idx = total_value.index.get_indexer(
+            [transaction['TIMESTAMP'] - pd.Timedelta(days=1)],
+            method='nearest'
+        )[0]
+        transaction_date = total_value.index[closest_idx]
+        transaction_value = total_value.iloc[closest_idx]
 
         if transaction['BUY_SELL'] == 'B':
-            ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='green', marker='^', alpha=0.7,
+            ax.scatter(transaction_date, transaction_value, color='green', marker='^', alpha=0.7,
                        label='Buy' if 'Buy' not in ax.get_legend_handles_labels()[1] else "")
         elif transaction['BUY_SELL'] == 'S':
-            ax.scatter(closest_date['TIMESTAMP'], transaction_value, color='red', marker='v', alpha=0.7,
+            ax.scatter(transaction_date, transaction_value, color='red', marker='v', alpha=0.7,
                        label='Sell' if 'Sell' not in ax.get_legend_handles_labels()[1] else "")
 
-    ax.grid(True, axis='y', zorder=1, linestyle='--', )
-
-    ax.set_title('Portfolio Value Over Time', zorder=2)
-    ax.set_xlabel('Date', zorder=2)
-    ax.set_ylabel('Total Value', zorder=2)
+    ax.set_title('Portfolio Value Over Time by Sub-Category')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Total Value')
+    ax.grid(True, axis='y', linestyle='--')
     ax.legend()
 
     return fig
+
 
 
 def plot_asset_value_by_account(data, drill_down_profile=True):
