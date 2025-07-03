@@ -160,7 +160,7 @@ def preprocess_mbank_pdf_transactions(new_data):
 
     return df[['TIMESTAMP', 'ACCOUNT_ID', 'ASSET_ID', 'BUY_SELL', 'VOLUME', 'PRICE',
                         'TRANSACTION_FEE', 'ASSET_CURRENCY', 'BASE_CURRENCY', 'VALUE',
-                        'NAME', 'MARKET', 'FX_RATE']]
+                        'NAME', 'MARKET', 'FX_RATE','INITIAL_DATE']]
 
 
 def transform_transactions(new_data, source, is_edo=False):
