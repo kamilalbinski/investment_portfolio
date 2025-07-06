@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import shutil
 import datetime
+from glob import glob
 
 from calculations.calculations_main import preprocess_transactions
 from utils.config import DATABASE_FILE
@@ -239,3 +240,40 @@ def get_portfolio_over_time(owner=None):
     portfolio_df['AGGREGATED_VALUE'] = portfolio_df['AGGREGATED_VALUE'].astype('float64')
 
     return portfolio_df, transactions_df
+
+
+def setup_database(db_path, ddl_tables_path='ddl/tables', ddl_views_path='ddl/view'):
+    """
+    Create a blank SQLite DB and run all table & view DDL scripts.
+    """
+    # Create DB file if it doesn't exist
+    if not os.path.exists(db_path):
+        print(f"Creating new database at: {db_path}")
+    else:
+        print(f"Database already exists at: {db_path}, continuing to apply DDLs.")
+
+    # Connect to DB
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Execute table DDLs
+    table_files = sorted(glob(os.path.join(ddl_tables_path, '*.sql')))
+    for ddl_file in table_files:
+        with open(ddl_file, 'r') as f:
+            sql_script = f.read()
+            print(f"Executing table DDL: {ddl_file}")
+            cursor.executescript(sql_script)
+
+    # Execute view DDLs
+    view_files = sorted(glob(os.path.join(ddl_views_path, '*.sql')))
+    for ddl_file in view_files:
+        with open(ddl_file, 'r') as f:
+            sql_script = f.read()
+            print(f"Executing view DDL: {ddl_file}")
+            cursor.executescript(sql_script)
+
+    # Commit & close
+    conn.commit()
+    conn.close()
+    print("Database setup complete.")
+

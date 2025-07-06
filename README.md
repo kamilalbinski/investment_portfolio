@@ -54,7 +54,7 @@ investment_portfolio/
 │   ├── config.py                   # Paths, flags
 │   └── database_setup.py           # DB schema setup & queries
 ├── manage_calculations.py         # Script for computing values/returns
-├── manage_pipeline.py             # CLI for running ETL pipeline
+├── manage_database_functions.py   # Database refresh functions
 ├── manage_pipeline_functions.py   # Shared ETL logic
 └── requirements.txt
 ```
@@ -68,7 +68,11 @@ git clone https://github.com/kamilalbinski/investment_portfolio.git
 cd investment_portfolio
 pip install -r requirements.txt
 ```
-
+After installing dependencies, initialize the database:
+```python
+from utils.database_setup import setup_database
+setup_database("portfolio.db")
+```
 ---
 
 ## ⚙️ Configuration
@@ -89,12 +93,6 @@ DATABASE_FILE = "portfolio.db"
 
 ```bash
 python main.py
-```
-
-### ETL Pipeline (CLI)
-
-```bash
-python manage_pipeline.py
 ```
 
 ### Portfolio Analysis (CLI)
