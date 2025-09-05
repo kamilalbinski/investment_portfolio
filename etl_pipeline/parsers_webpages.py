@@ -2,9 +2,8 @@ from bs4 import BeautifulSoup
 import requests
 from etl_pipeline.etl_utils import *
 import os
+from utils.config import BIZNESRADAR_URL, CPI_URL
 
-biznesradar_url = 'https://www.biznesradar.pl/notowania-historyczne/'
-cpi_url = 'https://stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronaopisowa/4741/1/1/miesieczne_wskazniki_cen_towarow_i_uslug_konsumpcyjnych_od_1982_roku.csv'
 
 # Function to fetch and parse the webpage content
 
@@ -65,7 +64,7 @@ def download_adjusted_prices_from_biznesradar(df):
         asset_id = row['ASSET_ID']
         ticker = row['NAME']
         date = row['DATE']
-        url = f'{biznesradar_url}{ticker}'
+        url = f'{BIZNESRADAR_URL}{ticker}'
         raw_table_df = fetch_and_parse_table(url)
         adjusted_prices.append(adjust_price_bizradar_df(df=raw_table_df, asset_id=asset_id, min_date=date))
 
@@ -89,7 +88,7 @@ def parse_cpi_pl() -> tuple[pd.DataFrame, str, str]:
 
     # Download file
 
-    response = requests.get(cpi_url)
+    response = requests.get(CPI_URL)
     with open(temp_file, 'wb') as f:
         f.write(response.content)  # Raw bytes written
 
