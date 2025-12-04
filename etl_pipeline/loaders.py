@@ -41,9 +41,10 @@ def add_new_asset(first_key, second_key, is_edo=False):
         new_asset_df = pd.DataFrame(new_asset_data)
 
         new_asset_df = add_default_values(new_asset_df, is_edo)
-
         new_asset_df.to_sql('ASSETS', conn, if_exists='append', index=False)
         print(f'{first_key} for {str(second_key).split()[0]} not found. Adding to table: "ASSETS"')
+
+
         # Retrieve the newly generated ASSET_ID
         query = f"SELECT ASSET_ID FROM ASSETS WHERE NAME = '{first_key}' AND {column_to_lookup} = '{second_key}'"
         new_asset_id = pd.read_sql_query(query, conn)['ASSET_ID'].values[0]

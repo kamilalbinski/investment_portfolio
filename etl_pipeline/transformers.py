@@ -5,7 +5,7 @@ from etl_pipeline.parsers_webpages import download_adjusted_prices_from_biznesra
 from etl_pipeline.etl_utils import *
 from calculations.calculations_edo import calculate_bulk_edo_values
 
-
+ASSETS_IGNORE_LIST = ['CASH','FX']
 
 def transform_holdings_dtypes(data):
     df = data.copy()
@@ -191,7 +191,6 @@ def transform_transactions(new_data, source, is_edo=False):
             asset_id = add_new_asset(row['NAME'], row[second_key], is_edo)
             merged_df.at[index, 'ASSET_ID'] = asset_id
 
-
     merged_df = merged_df[column_order]
 
     if source == 'mbank':
@@ -233,7 +232,7 @@ def get_new_assets(assets_df, latest_prices_df, table_type='PRICES'):
     latest_prices_list = latest_prices_df['ASSET_ID'].to_list()
 
     if table_type == 'PRICES':
-        new_assets = assets_df[(assets_df['MARKET'] != str(0))].copy()
+        new_assets = assets_df[~(assets_df['CATEGORY'].isin(ASSETS_IGNORE_LIST))].copy()
     elif table_type == 'CURRENCIES':
         new_assets = assets_df[(assets_df['MARKET'] == str(0)) & (assets_df['CATEGORY'] == 'FX')].copy()
     else:
@@ -257,9 +256,11 @@ def transform_prices_for_refresh(table_type='PRICES'):
     # Handle assets not included in table
     new_assets_df = get_new_assets(assets_df, latest_prices_df, table_type=table_type)
 
+
     if not new_assets_df.empty:
         latest_prices_df = pd.concat([latest_prices_df, new_assets_df], axis=0)
-        print('New asset(s) found. Added to database')
+        print('New asset(s) found. Added to database. Please update relevant fields')
+        #TODO add form
 
     prices_to_refresh_df = pd.merge(latest_prices_df, assets_df[['ASSET_ID', 'NAME', 'PRICE_SOURCE','INITIAL_DATE']],
                                     on='ASSET_ID', how='inner')

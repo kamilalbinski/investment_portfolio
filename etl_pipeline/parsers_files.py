@@ -153,12 +153,25 @@ def parse_pkotb(file_path):
 
     df = df[df['TYPE'].isin(relevant_types)]
 
-    initial_dates = df[df['TYPE'] == initial_dates_str].groupby(['NAME','DATE'])['DATE'].min()
-    initial_dates_alt = df[df['TYPE'] == initial_dates_str].groupby(['NAME'])['DATE'].min() ## workaround to handle missing details
+    init_date_y = (2000 + df['NAME'].str[-2:].astype(int) - 10).astype(str)
+    init_date_m = df['NAME'].astype(str).str[-4:-2]
+    init_date_d = df['SERIA'].astype(int).astype(str).str.zfill(2),
 
-    df['INITIAL_DATE'] = df.set_index(['NAME', 'DATE']).index.map(initial_dates)
-    df.loc[df['INITIAL_DATE'].isna(), 'INITIAL_DATE'] = df.loc[df['INITIAL_DATE'].isna(), 'NAME'].map(
-        initial_dates_alt)
+
+    df['INITIAL_DATE'] = pd.to_datetime(
+        (2000 + df['NAME'].str[-2:].astype(int) - 10).astype(str) +  # year (assuming 20XX)
+        df['NAME'].astype(str).str[-4:-2] +  # month
+        df['SERIA'].astype(int).astype(str).str.zfill(2),  # day, zero-padded
+        format='%Y%m%d', errors='coerce'
+    )
+
+
+    # initial_dates = df[df['TYPE'] == initial_dates_str].groupby(['NAME','DATE'])['DATE'].min()
+    # initial_dates_alt = df[df['TYPE'] == initial_dates_str].groupby(['NAME'])['DATE'].min() ## workaround to handle missing details
+    #
+    # df['INITIAL_DATE'] = df.set_index(['NAME', 'DATE']).index.map(initial_dates)
+    # df.loc[df['INITIAL_DATE'].isna(), 'INITIAL_DATE'] = df.loc[df['INITIAL_DATE'].isna(), 'NAME'].map(
+    #     initial_dates_alt)
 
     df['INITIAL_DATE'] = pd.to_datetime(df['INITIAL_DATE'])
 

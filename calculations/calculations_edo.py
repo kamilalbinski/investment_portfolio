@@ -174,32 +174,38 @@ def calculate_edo_aggregated_value(from_date, to_date, edo_df, cpi_df):
 def calculate_edo_values(edo_id, latest_price_date):
     # Get EDO details from ASSETS table in database
     edo_df = get_edo_details(edo_id)  # currently lookup via ASSET_ID supported
+    if len(edo_df) > 0:
+        # Get dates required for calculation table
+        purchase_date = edo_df['INITIAL_DATE'].iloc[0]
+        today_date = pd.Timestamp.today().normalize().tz_localize(None)
+        latest_price_date = pd.to_datetime(latest_price_date)
+        # Get CPI yearly updates from CPI table
+        cpi_table = get_cpi_for_period(purchase_date, today_date)
 
-    # Get dates required for calculation table
-    purchase_date = edo_df['INITIAL_DATE'].iloc[0]
-    today_date = pd.Timestamp.today().normalize().tz_localize(None)
-    latest_price_date = pd.to_datetime(latest_price_date)
-    # Get CPI yearly updates from CPI table
-    cpi_table = get_cpi_for_period(purchase_date, today_date)
+        # Create a calculations table, toggle return_table based on mode
+        # return_table = True# if mode == 'daily' else False
 
-    # Create a calculations table, toggle return_table based on mode
-    # return_table = True# if mode == 'daily' else False
+        #TODO - continue calculations from last price, instead of calculating from initial date. edit 2025/02/16 - what if wrong calcs?
 
-    #TODO - continue calculations from last price, instead of calculating from initial date. edit 2025/02/16 - what if wrong calcs?
+        final_df = calculate_edo_aggregated_value(purchase_date, today_date, edo_df, cpi_table)#, return_table=return_table)
 
-    final_df = calculate_edo_aggregated_value(purchase_date, today_date, edo_df, cpi_table)#, return_table=return_table)
+        final_df.reset_index(inplace=True)
+        final_df['ASSET_ID'] = edo_id
+        final_df.rename(columns={'AGGREGATED_VALUE':'PRICE'}, inplace=True)
+        final_df['PRICE'] = final_df['PRICE'].round(2)
 
-    final_df.reset_index(inplace=True)
-    final_df['ASSET_ID'] = edo_id
-    final_df.rename(columns={'AGGREGATED_VALUE':'PRICE'}, inplace=True)
-    final_df['PRICE'] = final_df['PRICE'].round(2)
+        # final_df['DATE'] = final_df['index']
 
-    # final_df['DATE'] = final_df['index']
+        final_df = final_df[['ASSET_ID','DATE','PRICE']].copy()
 
-    final_df = final_df[['ASSET_ID','DATE','PRICE']].copy()
+        final_df = final_df[pd.to_datetime(final_df['DATE'])>latest_price_date]
 
-    final_df = final_df[pd.to_datetime(final_df['DATE'])>latest_price_date]
+        return final_df
 
+    else:
+        print(f'Cannot locate any details for id: {edo_id}. Please update TB_PL table')
+
+        return None
 
 
     # if mode == 'daily':
@@ -212,7 +218,6 @@ def calculate_edo_values(edo_id, latest_price_date):
     # else:
     #     final_df = final_df[['AGGREGATED_VALUE']].tail(1).rename(columns={'AGGREGATED_VALUE': edo_id})
 
-    return final_df
 
 def calculate_bulk_edo_values(edo_data, mode='daily'):
     edos_df_list = []
