@@ -7,8 +7,14 @@ import os
 import datetime
 
 from manage_calculations import calculate_current_values, calculate_return_rate_per_asset
-from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
-from visualization.dynamic_plots import plot_portfolio_percentage, plot_portfolio_over_time, plot_asset_value_by_account, plot_return_values
+from views.custom_views import default_pivot, default_table
+from visualization.dynamic_plots import (
+    plot_portfolio_percentage,
+    plot_portfolio_over_time,
+    plot_asset_value_by_account,
+    plot_return_values,
+    _filter_data_for_timeframe,
+)
 from manage_database_functions import refresh_all
 from manage_pipeline_functions import run_etl_processes
 from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
@@ -67,11 +73,28 @@ class PortfolioManager:
         self.owner_combobox.pack(side=tk.LEFT, fill=tk.X)
         self.owner_combobox.set("All")  # Default selection
 
+        self.timeframe_selection_frame = ctk.CTkFrame(self.left_frame)
+        self.timeframe_selection_frame.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
+
+        self.timeframe_label = ctk.CTkLabel(self.timeframe_selection_frame, text="Time frame:")
+        self.timeframe_label.pack(side=tk.LEFT, padx=(0, 10), pady=(10, 10))
+
+        self.timeframe_values = ["All", "1M", "3M", "6M", "1Y", "3Y", "5Y", "YTD"]
+        self.timeframe_combobox = ttk.Combobox(
+            self.timeframe_selection_frame,
+            values=self.timeframe_values,
+            state="readonly",
+            width=8
+        )
+        self.timeframe_combobox.pack(side=tk.LEFT, fill=tk.X)
+        self.timeframe_combobox.set("All")
+
         self.execute_button = ctk.CTkButton(self.left_frame, text="Save results to file (csv)",
                                             command=self.save_table_to_csv)
         self.execute_button.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
         self.owner_combobox.bind("<<ComboboxSelected>>", lambda event: self.on_selection_change())
+        self.timeframe_combobox.bind("<<ComboboxSelected>>", lambda event: self.on_selection_change())
 
         # Radio buttons for selecting the plot function
         self.plot_choice = tk.IntVar()
@@ -178,8 +201,6 @@ class PortfolioManager:
 
         # Construct the file path for the CSV
         parent_dir = os.path.dirname(os.getcwd())
-        file_name = f"{formatted_date}_output.csv"
-
         # Determine what data to save based on the current plot selection
         if self.plot_choice.get() == 1 or self.plot_choice.get() >= 3:
             # Save current portfolio values
@@ -187,12 +208,14 @@ class PortfolioManager:
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
         elif self.plot_choice.get() == 2:
             # Save portfolio value over time
-            data = aggregated_values_pivoted(None, owner) # aggregated_values currently not in use
-            file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_output.csv")
+            portfolio_data, transactions_data = get_portfolio_over_time(owner)
+            selected_timeframe = self.timeframe_combobox.get()
+            data, _ = _filter_data_for_timeframe(portfolio_data, transactions_data, selected_timeframe)
+            file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_{selected_timeframe}_output.csv")
 
         # Save the data to a CSV file
         data.to_csv(file_path, index=False)
-        self.append_log(f"Results saved to {file_name}")
+        self.append_log(f"Results saved to {file_path}")
 
     def on_selection_change(self):
 
@@ -235,11 +258,12 @@ class PortfolioManager:
         elif self.plot_choice.get() == 2:
             portfolio_data, transactions_data = get_portfolio_over_time(owner)
             self.plot_data = portfolio_data
-            fig = plot_portfolio_over_time(portfolio_data, transactions_data)
+            selected_timeframe = self.timeframe_combobox.get()
+            fig = plot_portfolio_over_time(portfolio_data, transactions_data, timeframe=selected_timeframe)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing asset value over time for Portfolio: {owner}")
+            self.append_log(f"Drawing asset value over time for Portfolio: {owner} ({selected_timeframe})")
         elif self.plot_choice.get() == 3:
             fig = plot_asset_value_by_account(self.plot_data, drill_down_profile=False)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
