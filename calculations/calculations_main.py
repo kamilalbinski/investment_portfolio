@@ -170,31 +170,49 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     """
     Calculate daily values for a given asset.
     """
-    # Create a daily timestamp range based on the transaction data
-    daily_data = pd.DataFrame(
-        {'TIMESTAMP': pd.date_range(start=transactions_df['TIMESTAMP'].min(), end=datetime.now().strftime('%Y-%m-%d'))})
-
     # Filter transactions for the given asset ID
     transactions_subset = transactions_df[transactions_df['ASSET_ID'] == asset_id].copy()
 
+    # Create a daily timestamp range based on the asset transaction data
+    daily_data = pd.DataFrame(
+        {'TIMESTAMP': pd.date_range(start=transactions_subset['TIMESTAMP'].min(),
+                                    end=datetime.now().strftime('%Y-%m-%d'))})
+
+    owner_column_available = 'ACCOUNT_OWNER' in transactions_subset.columns
+
     # Calculate AGGREGATED volume
-#    transactions_subset['AGGREGATED_VOLUME'] = transactions_subset.groupby('ASSET_ID')['EFFECTIVE_VOLUME'].cumsum()
-    transactions_subset['AGGREGATED_VOLUME'] = transactions_subset.groupby(['ASSET_ID'])['EFFECTIVE_VOLUME'].cumsum()
+    groupby_cols = ['ASSET_ID', 'ACCOUNT_OWNER'] if owner_column_available else ['ASSET_ID']
+    transactions_subset['AGGREGATED_VOLUME'] = transactions_subset.groupby(groupby_cols)['EFFECTIVE_VOLUME'].cumsum()
     transactions_subset['TIMESTAMP'] = pd.to_datetime(transactions_subset['TIMESTAMP'])
 
-    # Merge daily data with adjusted prices and transactions
-    daily_data = pd.merge(daily_data, adjusted_prices_df[adjusted_prices_df['ASSET_ID'] == asset_id],
-                          on='TIMESTAMP', how='left')
-    daily_data = pd.merge(daily_data, transactions_subset, on='TIMESTAMP', how='left')
+    if owner_column_available:
+        owners_df = transactions_subset[['ACCOUNT_OWNER']].drop_duplicates()
+        owners_df['key'] = 1
+        daily_data['key'] = 1
+        daily_data = pd.merge(daily_data, owners_df, on='key', how='inner').drop(columns='key')
+
+        # Merge daily data with adjusted prices and transactions
+        daily_data = pd.merge(daily_data, adjusted_prices_df[adjusted_prices_df['ASSET_ID'] == asset_id],
+                              on='TIMESTAMP', how='left')
+        daily_data = pd.merge(daily_data, transactions_subset,
+                              on=['TIMESTAMP', 'ACCOUNT_OWNER'], how='left')
+
+        daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME', 'ACCOUNT_OWNER']]
+        daily_data = daily_data.sort_values(by=['ACCOUNT_OWNER', 'TIMESTAMP'])
+        fill_columns = ['CONVERTED_PRICE', 'AGGREGATED_VOLUME']
+        daily_data[fill_columns] = daily_data.groupby('ACCOUNT_OWNER')[fill_columns].ffill()
+        daily_data[fill_columns] = daily_data[fill_columns].fillna(0)
+    else:
+        # Merge daily data with adjusted prices and transactions
+        daily_data = pd.merge(daily_data, adjusted_prices_df[adjusted_prices_df['ASSET_ID'] == asset_id],
+                              on='TIMESTAMP', how='left')
+        daily_data = pd.merge(daily_data, transactions_subset, on='TIMESTAMP', how='left')
+
+        # Forward-fill missing values and fill NaN with 0
+        daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME']].ffill().fillna(0)
 
     # Extract asset name and handle missing values
     # asset_name = daily_data['NAME'].dropna().unique()[0]
-
-    # Forward-fill missing values and fill NaN with 0
-    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME','ACCOUNT_OWNER']].ffill().fillna(0)
-
-    #TODO verify drop_duplicates workaround
-    daily_data.drop_duplicates(subset='TIMESTAMP', keep='last',inplace=True)
 
     # Calculate the daily AGGREGATED value
     daily_data['AGGREGATED_VALUE'] = daily_data['CONVERTED_PRICE'] * daily_data['AGGREGATED_VOLUME']
@@ -204,7 +222,11 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # Filter the required columns and remove rows with zero AGGREGATED value
 
     #TODO Replace Owner with portfolio
-    result = daily_data[['TIMESTAMP','ASSET_ID','ACCOUNT_OWNER','AGGREGATED_VALUE']]
+    result_columns = ['TIMESTAMP', 'ASSET_ID', 'AGGREGATED_VALUE']
+    if owner_column_available:
+        result_columns.insert(2, 'ACCOUNT_OWNER')
+
+    result = daily_data[result_columns]
     result = result[result['AGGREGATED_VALUE'] != 0].copy()
 
     # # Rename columns to match the desired output format
@@ -213,4 +235,3 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # })
 
     return result
-
