@@ -86,13 +86,59 @@ def plot_portfolio_percentage(data):
 #
 #     return fig
 
-def plot_portfolio_over_time(portfolio_data, transactions_data):
+def _filter_data_for_timeframe(portfolio_data, transactions_data, timeframe='All'):
+    """
+    Filter portfolio and transaction data to selected timeframe.
+    Timeframe uses latest portfolio timestamp as an anchor.
+    """
+    if timeframe == 'All':
+        return portfolio_data, transactions_data
+
+    if portfolio_data.empty:
+        return portfolio_data, transactions_data.iloc[0:0]
+
+    latest_timestamp = portfolio_data['TIMESTAMP'].max()
+
+    if timeframe == 'YTD':
+        start_date = pd.Timestamp(year=latest_timestamp.year, month=1, day=1)
+    else:
+        offsets = {
+            '1M': pd.DateOffset(months=1),
+            '3M': pd.DateOffset(months=3),
+            '6M': pd.DateOffset(months=6),
+            '1Y': pd.DateOffset(years=1),
+            '3Y': pd.DateOffset(years=3),
+            '5Y': pd.DateOffset(years=5),
+        }
+        start_date = latest_timestamp - offsets.get(timeframe, pd.DateOffset(years=100))
+
+    filtered_portfolio_data = portfolio_data[portfolio_data['TIMESTAMP'] >= start_date].copy()
+    filtered_transactions_data = transactions_data[transactions_data['TIMESTAMP'] >= start_date].copy()
+
+    return filtered_portfolio_data, filtered_transactions_data
+
+
+def plot_portfolio_over_time(portfolio_data, transactions_data, timeframe='All'):
     import matplotlib.pyplot as plt
     import pandas as pd
 
     # Convert timestamps
     portfolio_data['TIMESTAMP'] = pd.to_datetime(portfolio_data['TIMESTAMP'])
     transactions_data['TIMESTAMP'] = pd.to_datetime(transactions_data['TIMESTAMP'])
+
+    portfolio_data, transactions_data = _filter_data_for_timeframe(
+        portfolio_data,
+        transactions_data,
+        timeframe=timeframe
+    )
+
+    if portfolio_data.empty:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        title_suffix = '' if timeframe == 'All' else f' ({timeframe})'
+        ax.set_title(f'Portfolio Value Over Time by Sub-Category{title_suffix}')
+        ax.text(0.5, 0.5, 'No data for selected timeframe', ha='center', va='center', transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
 
     # Pivot to wide format: TIMESTAMP as index, SUB_CATEGORY as columns
     pivot_df = portfolio_data.pivot_table(
@@ -126,7 +172,8 @@ def plot_portfolio_over_time(portfolio_data, transactions_data):
             ax.scatter(transaction_date, transaction_value, color='red', marker='v', alpha=0.7,
                        label='Sell' if 'Sell' not in ax.get_legend_handles_labels()[1] else "")
 
-    ax.set_title('Portfolio Value Over Time by Sub-Category')
+    title_suffix = '' if timeframe == 'All' else f' ({timeframe})'
+    ax.set_title(f'Portfolio Value Over Time by Sub-Category{title_suffix}')
     ax.set_xlabel('Date')
     ax.set_ylabel('Total Value')
     ax.grid(True, axis='y', linestyle='--')
