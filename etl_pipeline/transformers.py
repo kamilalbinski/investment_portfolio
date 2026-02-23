@@ -133,7 +133,7 @@ def preprocess_mbank_pdf_transactions(new_data):
         'KURS WALUTY':'FX_RATE',
         'CZAS TRANSAKCJI':'TIMESTAMP',
         'RACHUNEK':'ACCOUNT_ID',
-        'WŁAŚCICIEL':'ACCOUNT_OWNER' #TO DROP
+        'WŁAŚCICIEL':'ACCOUNT_OWNER_NAME' #TO DROP
     },inplace=True)
 
 

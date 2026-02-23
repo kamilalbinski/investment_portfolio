@@ -52,7 +52,7 @@ def default_table(data=None, owner=None):
 
     if not owner:
         columns = [
-            'ACCOUNT_OWNER',
+            'ACCOUNT_OWNER_ID',
             'ACCOUNT_NAME',
             'NAME',
             'CATEGORY',
@@ -84,10 +84,12 @@ def aggregated_values_pivoted(data=None, owner=None):
     df = data
 
     if df is None or df.empty:
+        if owner is not None:
+            owner = int(owner)
         df = get_current_portfolio_data('AGGREGATED_VALUES', account_owner=owner)
 
     if owner:
-        df = df[df['ACCOUNT_OWNER']==owner]
+        df = df[df['ACCOUNT_OWNER_ID']==owner]
 
     assets_df = get_asset_ids_from_database()
     merged_df = df.merge(assets_df[['ASSET_ID','NAME']], how='left', on='ASSET_ID')

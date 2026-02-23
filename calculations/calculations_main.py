@@ -110,10 +110,10 @@ def preprocess_transactions(transactions_df):
     transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B',
                                                                           -transactions_df['VOLUME'])
 
-    groupby_list = ['ACCOUNT_OWNER', 'ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
+    groupby_list = ['ACCOUNT_OWNER_ID', 'ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
 
-    if 'ACCOUNT_OWNER' not in transactions_df.columns:
-        groupby_list.remove('ACCOUNT_OWNER')
+    if 'ACCOUNT_OWNER_ID' not in transactions_df.columns:
+        groupby_list.remove('ACCOUNT_OWNER_ID')
 
     transactions_df = transactions_df.groupby(groupby_list).agg({
         'ACCOUNT_NAME': 'first',
@@ -191,7 +191,7 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # asset_name = daily_data['NAME'].dropna().unique()[0]
 
     # Forward-fill missing values and fill NaN with 0
-    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME','ACCOUNT_OWNER']].ffill().fillna(0)
+    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME','ACCOUNT_OWNER_ID']].ffill().fillna(0)
 
     #TODO verify drop_duplicates workaround
     daily_data.drop_duplicates(subset='TIMESTAMP', keep='last',inplace=True)
@@ -204,7 +204,7 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # Filter the required columns and remove rows with zero AGGREGATED value
 
     #TODO Replace Owner with portfolio
-    result = daily_data[['TIMESTAMP','ASSET_ID','ACCOUNT_OWNER','AGGREGATED_VALUE']]
+    result = daily_data[['TIMESTAMP','ASSET_ID','ACCOUNT_OWNER_ID','AGGREGATED_VALUE']]
     result = result[result['AGGREGATED_VALUE'] != 0].copy()
 
     # # Rename columns to match the desired output format

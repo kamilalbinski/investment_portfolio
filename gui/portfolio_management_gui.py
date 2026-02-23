@@ -7,7 +7,7 @@ import os
 import datetime
 
 from manage_calculations import calculate_current_values, calculate_return_rate_per_asset
-from views.custom_views import default_pivot, default_table
+from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
 from visualization.dynamic_plots import (
     plot_portfolio_percentage,
     plot_portfolio_over_time,
@@ -215,11 +215,19 @@ class PortfolioManager:
             data = default_table(self.plot_data, owner)
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
         elif self.plot_choice.get() == 2:
+            # # Save portfolio value over time
+            # portfolio_data, transactions_data = get_portfolio_over_time(owner)
+            # selected_timeframe = self.timeframe_combobox.get()
+            # data, _ = _filter_data_for_timeframe(portfolio_data, transactions_data, 'All')
+            # # data, _ = _filter_data_for_timeframe(portfolio_data, transactions_data, selected_timeframe)
+            # file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_{selected_timeframe}_output.csv")
+
+
             # Save portfolio value over time
-            portfolio_data, transactions_data = get_portfolio_over_time(owner)
-            selected_timeframe = self.timeframe_combobox.get()
-            data, _ = _filter_data_for_timeframe(portfolio_data, transactions_data, selected_timeframe)
-            file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_{selected_timeframe}_output.csv")
+            data = aggregated_values_pivoted(None, owner)
+            file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_output.csv")
+
+
 
         # Save the data to a CSV file
         data.to_csv(file_path, index=False)

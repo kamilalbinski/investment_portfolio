@@ -107,7 +107,7 @@ def get_current_portfolio_data(table_name, account_owner=None):
     FROM {table_name} 
     '''
     if account_owner:
-        query += f'WHERE ACCOUNT_OWNER = "{account_owner}"\n'
+        query += f'WHERE ACCOUNT_OWNER_ID = {account_owner}\n'
 
     return fetch_data_from_database(table_name, query=query)
 
@@ -117,9 +117,9 @@ def get_daily_portfolio_data(table_name, account_owner=None):
     FROM {table_name} 
     '''
     if account_owner:
-        query += f'WHERE ACCOUNT_OWNER = "{account_owner}"\n'
+        query += f'WHERE ACCOUNT_OWNER_ID = {account_owner}\n'
     else:
-        query += f'WHERE ACCOUNT_OWNER = "None"\n'
+        query += f'WHERE ACCOUNT_OWNER_ID = "None"\n'
 
     return fetch_data_from_database(table_name, query=query)
 
@@ -130,7 +130,7 @@ def query_all_transactions(account_owner=None):
     query = '''SELECT * FROM TRANSACTIONS_ALL'''
 
     if account_owner:
-        query += f'WHERE a.ACCOUNT_OWNER = "{account_owner}"\n'
+        query += f'WHERE a.ACCOUNT_OWNER_ID = {account_owner}\n'
 
     # Use Pandas to read the SQL query result into a DataFrame
     df = pd.read_sql_query(query, conn)
@@ -170,7 +170,7 @@ def query_all_holdings(account_owner=None, listed=True):
 
     # Include a.ACCOUNT_OWNER in the selection if account_owner is not provided
     if not account_owner:
-        select_columns = "a.ACCOUNT_OWNER, " + select_columns
+        select_columns = "a.ACCOUNT_OWNER_ID, " + select_columns
 
     # Construct the base part of the query using the dynamically built SELECT part
     query = f"""
@@ -199,7 +199,7 @@ def query_all_holdings(account_owner=None, listed=True):
 
     # Add condition for account_owner if provided
     if account_owner:
-        query += f'AND a.ACCOUNT_OWNER = "{account_owner}"\n'
+        query += f'AND a.ACCOUNT_OWNER_ID = {account_owner}\n'
 
     # # Add the final part of the WHERE clause
     # query += f'AND s.MARKET {sign} 0'
@@ -220,7 +220,7 @@ def get_temporary_owners_list(table='ACCOUNTS'):
     cursor = conn.cursor()
 
     # Execute a query to fetch unique owner names
-    cursor.execute(f"SELECT DISTINCT ACCOUNT_OWNER FROM {table}")
+    cursor.execute(f"SELECT DISTINCT ACCOUNT_OWNER_ID FROM {table}")
     owner_names = [row[0] for row in cursor.fetchall()]
     owner_names.append('All')
 
@@ -276,4 +276,3 @@ def setup_database(db_path, ddl_tables_path='ddl/tables', ddl_views_path='ddl/vi
     conn.commit()
     conn.close()
     print("Database setup complete.")
-
