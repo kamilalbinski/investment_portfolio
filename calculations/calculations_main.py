@@ -110,12 +110,17 @@ def preprocess_transactions(transactions_df):
     transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B',
                                                                           -transactions_df['VOLUME'])
 
-    groupby_list = ['ACCOUNT_OWNER_ID', 'ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
+    dimension_column = None
+    if 'PORTFOLIO_ID' in transactions_df.columns:
+        dimension_column = 'PORTFOLIO_ID'
+    elif 'ACCOUNT_OWNER_ID' in transactions_df.columns:
+        dimension_column = 'ACCOUNT_OWNER_ID'
 
-    if 'ACCOUNT_OWNER_ID' not in transactions_df.columns:
-        groupby_list.remove('ACCOUNT_OWNER_ID')
+    groupby_list = ['ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
+    if dimension_column:
+        groupby_list.insert(0, dimension_column)
 
-    transactions_df = transactions_df.groupby(groupby_list).agg({
+    agg_mapping = {
         'ACCOUNT_NAME': 'first',
         'YFINANCE_ID': 'first',
         'BASE_CURRENCY': 'first',
@@ -126,7 +131,10 @@ def preprocess_transactions(transactions_df):
         'VOLUME': 'sum',
         'TRANSACTION_FEE': 'sum',
         'EFFECTIVE_VOLUME': 'sum'
-    }).reset_index()
+    }
+    agg_mapping = {k: v for k, v in agg_mapping.items() if k in transactions_df.columns}
+
+    transactions_df = transactions_df.groupby(groupby_list).agg(agg_mapping).reset_index()
 
     transactions_df.sort_values(by=['ASSET_ID', 'TIMESTAMP'], inplace=True)
 
@@ -190,8 +198,18 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # Extract asset name and handle missing values
     # asset_name = daily_data['NAME'].dropna().unique()[0]
 
+    dimension_column = None
+    if 'PORTFOLIO_ID' in daily_data.columns:
+        dimension_column = 'PORTFOLIO_ID'
+    elif 'ACCOUNT_OWNER_ID' in daily_data.columns:
+        dimension_column = 'ACCOUNT_OWNER_ID'
+
+    columns_to_keep = ['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME']
+    if dimension_column:
+        columns_to_keep.append(dimension_column)
+
     # Forward-fill missing values and fill NaN with 0
-    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME','ACCOUNT_OWNER_ID']].ffill().fillna(0)
+    daily_data = daily_data[columns_to_keep].ffill().fillna(0)
 
     #TODO verify drop_duplicates workaround
     daily_data.drop_duplicates(subset='TIMESTAMP', keep='last',inplace=True)
@@ -200,11 +218,14 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     daily_data['AGGREGATED_VALUE'] = daily_data['CONVERTED_PRICE'] * daily_data['AGGREGATED_VOLUME']
 
     daily_data['ASSET_ID'] = asset_id
-    daily_data['ACCOUNT_OWNER_ID'] = daily_data['ACCOUNT_OWNER_ID'].astype(int)
+    if dimension_column:
+        daily_data[dimension_column] = daily_data[dimension_column].astype(int)
     # Filter the required columns and remove rows with zero AGGREGATED value
 
-    #TODO Replace Owner with portfolio
-    result = daily_data[['TIMESTAMP','ASSET_ID','ACCOUNT_OWNER_ID','AGGREGATED_VALUE']]
+    result_columns = ['TIMESTAMP', 'ASSET_ID', 'AGGREGATED_VALUE']
+    if dimension_column:
+        result_columns.insert(2, dimension_column)
+    result = daily_data[result_columns]
     result = result[result['AGGREGATED_VALUE'] != 0].copy()
 
 

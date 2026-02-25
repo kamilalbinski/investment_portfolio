@@ -3,11 +3,11 @@ from utils.database_setup import get_asset_ids_from_database, get_current_portfo
 import pandas as pd
 
 
-def default_pivot(data=None, owner=None, save_results=False):
+def default_pivot(data=None, owner=None, portfolio_id=None, save_results=False):
     #TODO Add more columns to the view
     df = data
     if df is None or df.empty:
-        df = calculate_current_values(owner, return_totals=False)
+        df = calculate_current_values(owner=owner, portfolio_id=portfolio_id, return_totals=False)
 
     # Calculate detailed sum for PROFILE level
     detailed_pivot = pd.pivot_table(df, values=['CURRENT_ASSET_VALUE'], index=['SUB_CATEGORY', 'PROFILE'],
@@ -45,14 +45,16 @@ def default_pivot(data=None, owner=None, save_results=False):
     return combined_pivot
 
 
-def default_table(data=None, owner=None):
+def default_table(data=None, owner=None, portfolio_id=None):
     df = data
     if df is None or df.empty:
-        df = calculate_current_values(owner, return_totals=False)
+        df = calculate_current_values(owner=owner, portfolio_id=portfolio_id, return_totals=False)
 
-    if not owner:
+    owner_column = 'PORTFOLIO_ID' if 'PORTFOLIO_ID' in df.columns else 'ACCOUNT_OWNER_ID'
+
+    if owner is None and portfolio_id is None and owner_column in df.columns:
         columns = [
-            'ACCOUNT_OWNER_ID',
+            owner_column,
             'ACCOUNT_NAME',
             'NAME',
             'CATEGORY',
@@ -79,17 +81,24 @@ def default_table(data=None, owner=None):
 
     return transformed_df
 
-def aggregated_values_pivoted(data=None, owner=None):
+def aggregated_values_pivoted(data=None, owner=None, portfolio_id=None):
 
     df = data
 
     if df is None or df.empty:
         if owner is not None:
             owner = int(owner)
-        df = get_current_portfolio_data('AGGREGATED_VALUES', account_owner=owner)
+        if portfolio_id is not None:
+            portfolio_id = int(portfolio_id)
+        df = get_current_portfolio_data('AGGREGATED_VALUES', account_owner=owner, portfolio_id=portfolio_id)
 
-    if owner:
-        df = df[df['ACCOUNT_OWNER_ID']==owner]
+    if portfolio_id is not None:
+        if 'PORTFOLIO_ID' in df.columns:
+            df = df[df['PORTFOLIO_ID'] == int(portfolio_id)]
+        else:
+            return pd.DataFrame(columns=['TIMESTAMP'])
+    elif owner is not None and 'ACCOUNT_OWNER_ID' in df.columns:
+        df = df[df['ACCOUNT_OWNER_ID'] == int(owner)]
 
     assets_df = get_asset_ids_from_database()
     merged_df = df.merge(assets_df[['ASSET_ID','NAME']], how='left', on='ASSET_ID')

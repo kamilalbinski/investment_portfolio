@@ -6,7 +6,7 @@ from calculations.calculations_main import calculate_average_purchase_price, pre
 
 import warnings
 
-from utils.database_setup import get_price_data, get_all_currency_asset_ids, get_current_portfolio_data
+from utils.database_setup import get_price_data, get_all_currency_asset_ids, get_current_portfolio_data, table_or_view_exists
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="yfinance")
 
@@ -29,12 +29,14 @@ def add_calc_fields_for_returns(df):
     return df
 
 
-def calculate_current_values(owner=None, return_totals=False):
+def calculate_current_values(owner=None, portfolio_id=None, return_totals=False):
 
     # Get data from holdings and transactions view
+    transactions_view = 'PORTFOLIO_TRANSACTIONS_ALL' if table_or_view_exists('PORTFOLIO_TRANSACTIONS_ALL') else 'TRANSACTIONS_ALL'
+    holdings_view = 'PORTFOLIO_CURRENT_HOLDINGS_ALL' if table_or_view_exists('PORTFOLIO_CURRENT_HOLDINGS_ALL') else 'CURRENT_HOLDINGS_ALL'
 
-    transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
-    market_df = get_current_portfolio_data(table_name='CURRENT_HOLDINGS_ALL', account_owner=owner)
+    transactions_df = get_current_portfolio_data(table_name=transactions_view, account_owner=owner, portfolio_id=portfolio_id)
+    market_df = get_current_portfolio_data(table_name=holdings_view, account_owner=owner, portfolio_id=portfolio_id)
 
     # Calculate average purchase price for all transactions
     average_prices_df = calculate_average_purchase_price(transactions_df)
@@ -64,9 +66,10 @@ def calculate_current_values(owner=None, return_totals=False):
 
 
 
-def calculate_portfolio_over_time(owner=None):
+def calculate_portfolio_over_time(owner=None, portfolio_id=None):
     # transactions_df = query_all_transactions(owner)
-    transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
+    transactions_view = 'PORTFOLIO_TRANSACTIONS_ALL' if table_or_view_exists('PORTFOLIO_TRANSACTIONS_ALL') else 'TRANSACTIONS_ALL'
+    transactions_df = get_current_portfolio_data(table_name=transactions_view, account_owner=owner, portfolio_id=portfolio_id)
     transactions_df = preprocess_transactions(transactions_df)
 
     asset_ids = transactions_df['ASSET_ID'].unique()
@@ -95,7 +98,7 @@ def calculate_all_portfolios_over_time(owners):
     all_porfolios = []
 
     for owner in owners:
-        portfolio_df = calculate_portfolio_over_time(owner=owner)
+        portfolio_df = calculate_portfolio_over_time(owner=owner, portfolio_id=owner)
         all_porfolios.append(portfolio_df)
 
     all_porfolios_df = pd.concat(all_porfolios, keys=owners).reset_index(drop=True)
@@ -103,9 +106,9 @@ def calculate_all_portfolios_over_time(owners):
     return all_porfolios_df
 
 
-def calculate_return_rate_per_asset(owner=None, aggregation_column='NAME'):
+def calculate_return_rate_per_asset(owner=None, portfolio_id=None, aggregation_column='NAME'):
 
-    df = calculate_current_values(owner=owner)
+    df = calculate_current_values(owner=owner, portfolio_id=portfolio_id)
 
     df = df.groupby([aggregation_column])[
         ['PURCHASE_ASSET_VALUE_BASE', 'PURCHASE_ASSET_VALUE', 'CURRENT_ASSET_VALUE', 'CURRENT_RETURN_VALUE_BASE',
