@@ -200,12 +200,13 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     daily_data['AGGREGATED_VALUE'] = daily_data['CONVERTED_PRICE'] * daily_data['AGGREGATED_VOLUME']
 
     daily_data['ASSET_ID'] = asset_id
-
+    daily_data['ACCOUNT_OWNER_ID'] = daily_data['ACCOUNT_OWNER_ID'].astype(int)
     # Filter the required columns and remove rows with zero AGGREGATED value
 
     #TODO Replace Owner with portfolio
     result = daily_data[['TIMESTAMP','ASSET_ID','ACCOUNT_OWNER_ID','AGGREGATED_VALUE']]
     result = result[result['AGGREGATED_VALUE'] != 0].copy()
+
 
     # # Rename columns to match the desired output format
     # result = result.rename(columns={
