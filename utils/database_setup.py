@@ -101,143 +101,108 @@ def get_all_currency_asset_ids():
     df = fetch_data_from_database(table_name='ASSETS', query=query)
     return df
 
-def get_current_portfolio_data(table_name, account_owner=None):
-    query = f'''
-    SELECT *
-    FROM {table_name} 
-    '''
-    if account_owner:
-        query += f'WHERE ACCOUNT_OWNER_ID = {account_owner}\n'
-
-    return fetch_data_from_database(table_name, query=query)
-
-def get_daily_portfolio_data(table_name, account_owner=None):
-    query = f'''
-    SELECT *
-    FROM {table_name} 
-    '''
-    if account_owner:
-        query += f'WHERE ACCOUNT_OWNER_ID = {account_owner}\n'
-    else:
-        query += f'WHERE ACCOUNT_OWNER_ID = "None"\n'
-
-    return fetch_data_from_database(table_name, query=query)
-
-def query_all_transactions(account_owner=None):
-    # Connect to the SQLite database
-    conn = sqlite3.connect(DATABASE_FILE)
-
-    query = '''SELECT * FROM TRANSACTIONS_ALL'''
-
-    if account_owner:
-        query += f'WHERE a.ACCOUNT_OWNER_ID = {account_owner}\n'
-
-    # Use Pandas to read the SQL query result into a DataFrame
-    df = pd.read_sql_query(query, conn)
-
-    # Close the database connection
-    conn.close()
-
-    return df
-
-
-
-
-def query_all_holdings(account_owner=None, listed=True):
-    # Connect to the SQLite database
-    conn = sqlite3.connect(DATABASE_FILE)
-
-    if not listed:
-        sign = '='
-    else:
-        sign = '!='
-
-    # Dynamically build the SELECT part of the query
-    select_columns = """
-            a.ACCOUNT_ID, 
-            a.ACCOUNT_NAME, 
-            h.ASSET_ID, 
-            h.VOLUME, 
-            s.NAME, 
-            s.MARKET, 
-            s.CATEGORY,
-            s.SUB_CATEGORY,
-            s.PROFILE,
-            p.PRICE AS CURRENT_PRICE,
-            s.CURRENCY, 
-            COALESCE(c.PRICE, 1) AS FX_RATE
-    """
-
-    # Include a.ACCOUNT_OWNER in the selection if account_owner is not provided
-    if not account_owner:
-        select_columns = "a.ACCOUNT_OWNER_ID, " + select_columns
-
-    # Construct the base part of the query using the dynamically built SELECT part
+def get_current_portfolio_data(table_name, portfolio_id=None):
     query = f"""
-        SELECT 
-            {select_columns}
-        FROM 
-            ACCOUNTS a
-        LEFT JOIN 
-            HOLDINGS h ON a.ACCOUNT_ID = h.ACCOUNT_ID
-        LEFT JOIN 
-            ASSETS s ON h.ASSET_ID = s.ASSET_ID
-        LEFT JOIN 
-            LATEST_PRICES p ON s.ASSET_ID = p.ASSET_ID
-        LEFT JOIN (
-            SELECT
-                c.PRICE,
-                s.CURRENCY
-            FROM
-                LATEST_CURRENCIES c
-            JOIN
-                ASSETS s ON c.ASSET_ID = s.ASSET_ID
-        ) c on s.CURRENCY = c.CURRENCY
-        WHERE 
-            1=1
+    SELECT *
+    FROM {table_name}
     """
+    if portfolio_id is not None:
+        query += f'WHERE PORTFOLIO_ID = {int(portfolio_id)}\n'
 
-    # Add condition for account_owner if provided
-    if account_owner:
-        query += f'AND a.ACCOUNT_OWNER_ID = {account_owner}\n'
+    return fetch_data_from_database(table_name, query=query)
 
-    # # Add the final part of the WHERE clause
-    # query += f'AND s.MARKET {sign} 0'
 
-    # Use Pandas to read the SQL query result into a DataFrame
-    df = pd.read_sql_query(query, conn)
+def get_portfolio_transactions(portfolio_id=None):
+    query = """
+    SELECT *
+    FROM V_PORTFOLIO_TRANSACTIONS
+    """
+    if portfolio_id is not None:
+        query += f'WHERE PORTFOLIO_ID = {int(portfolio_id)}\n'
+    return fetch_data_from_database('V_PORTFOLIO_TRANSACTIONS', query=query)
 
-    # Close the database connection
-    conn.close()
 
-    return df
+def get_portfolio_holdings_values(portfolio_id=None):
+    query = """
+    SELECT *
+    FROM V_PORTFOLIO_CURRENT_VALUES
+    """
+    if portfolio_id is not None:
+        query += f'WHERE PORTFOLIO_ID = {int(portfolio_id)}\n'
+    return fetch_data_from_database('V_PORTFOLIO_CURRENT_VALUES', query=query)
+
+
+def get_portfolio_aggregated_values(portfolio_id=None):
+    query = """
+    SELECT *
+    FROM AGGREGATED_PORTFOLIO_VALUES
+    """
+    if portfolio_id is not None:
+        query += f'WHERE PORTFOLIO_ID = {int(portfolio_id)}\n'
+    return fetch_data_from_database('AGGREGATED_PORTFOLIO_VALUES', query=query)
+
+
+def query_all_transactions(portfolio_id=None):
+    return get_portfolio_transactions(portfolio_id=portfolio_id)
+
+
+def query_all_holdings(portfolio_id=None, listed=True):
+    _ = listed
+    return get_portfolio_holdings_values(portfolio_id=portfolio_id)
 
 
 def get_temporary_owners_list(table='ACCOUNTS'):
-    # Connect to your database
-
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-
-    # Execute a query to fetch unique owner names
-    cursor.execute(f"SELECT DISTINCT ACCOUNT_OWNER_ID FROM {table}")
-    owner_names = [row[0] for row in cursor.fetchall()]
-    owner_names.append('All')
-
-    conn.close()
-
-    return owner_names
+    """Deprecated: kept for backward compatibility."""
+    _ = table
+    df = get_portfolios_list(include_inactive=False)
+    return df['PORTFOLIO_NAME'].tolist()
 
 
-def get_portfolio_over_time(owner=None):
+def get_portfolios_list(owner_id=None, include_inactive=False):
+    """
+    Returns available portfolios for the selector layer.
 
-    # transactions_df = query_all_transactions(owner)
-    transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
-    transactions_df = preprocess_transactions(transactions_df)
+    Parameters
+    ----------
+    owner_id : int | None
+        If provided, returns portfolios for this owner and global owner (OWNER_ID = 0).
+    include_inactive : bool
+        Include inactive portfolios when True.
+    """
+    query = """
+    SELECT
+        PORTFOLIO_ID,
+        OWNER_ID,
+        PORTFOLIO_CODE,
+        PORTFOLIO_NAME,
+        BASE_CURRENCY,
+        IS_DEFAULT,
+        IS_ACTIVE
+    FROM PORTFOLIOS_V2
+    WHERE 1=1
+    """
 
-    portfolio_df = get_daily_portfolio_data('AGGREGATED_PORTFOLIO_VALUES', account_owner=owner)
-    portfolio_df['TIMESTAMP'] = pd.to_datetime(portfolio_df['TIMESTAMP']).dt.date
-    portfolio_df['AGGREGATED_VALUE'] = portfolio_df['AGGREGATED_VALUE'].astype('float64')
+    if not include_inactive:
+        query += " AND IS_ACTIVE = 1\n"
+
+    if owner_id is not None:
+        query += f" AND OWNER_ID IN (0, {int(owner_id)})\n"
+
+    query += " ORDER BY OWNER_ID, IS_DEFAULT DESC, PORTFOLIO_NAME"
+
+    return fetch_data_from_database('PORTFOLIOS_V2', query=query)
+
+
+def get_portfolio_over_time(portfolio_id=None):
+    transactions_df = get_portfolio_transactions(portfolio_id=portfolio_id)
+
+    if not transactions_df.empty:
+        transactions_df = preprocess_transactions(transactions_df)
+
+    portfolio_df = get_portfolio_aggregated_values(portfolio_id=portfolio_id)
+    if not portfolio_df.empty:
+        portfolio_df['TIMESTAMP'] = pd.to_datetime(portfolio_df['TIMESTAMP']).dt.date
+        portfolio_df['AGGREGATED_VALUE'] = portfolio_df['AGGREGATED_VALUE'].astype('float64')
 
     return portfolio_df, transactions_df
 

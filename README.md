@@ -156,6 +156,20 @@ pip install -r requirements.txt
 
 ---
 
+
+## 🧱 Portfolio-Centric Redesign
+
+A proposed migration from owner-centric filtering to portfolio-centric analytics is documented in:
+
+- `docs/portfolio_schema_redesign.md`
+- `ddl/migrations/001_portfolio_redesign.sql`
+
+This redesign supports multiple portfolios per owner, an admin-wide `ALL` scope, and profile drift analytics at portfolio level.
+
+Portfolio-level SQL views are available in `ddl/view/create_V_PORTFOLIO_*.sql`.
+
+---
+
 ## 📄 License
 
 Licensed under the MIT License. See [LICENSE](LICENSE) for details.

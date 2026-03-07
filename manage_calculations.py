@@ -5,8 +5,15 @@ from calculations.calculations_main import calculate_average_purchase_price, pre
     calculate_asset_daily_values
 
 import warnings
+import pandas as pd
 
-from utils.database_setup import get_price_data, get_all_currency_asset_ids, get_current_portfolio_data
+from utils.database_setup import (
+    get_price_data,
+    get_all_currency_asset_ids,
+    get_portfolio_holdings_values,
+    get_portfolio_transactions,
+    get_portfolios_list,
+)
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="yfinance")
 
@@ -29,32 +36,22 @@ def add_calc_fields_for_returns(df):
     return df
 
 
-def calculate_current_values(owner=None, return_totals=False):
+def calculate_current_values(portfolio_id=None, return_totals=False):
+    transactions_df = get_portfolio_transactions(portfolio_id=portfolio_id)
+    market_df = get_portfolio_holdings_values(portfolio_id=portfolio_id)
 
-    # Get data from holdings and transactions view
-
-    transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
-    market_df = get_current_portfolio_data(table_name='CURRENT_HOLDINGS_ALL', account_owner=owner)
-
-    # Calculate average purchase price for all transactions
     average_prices_df = calculate_average_purchase_price(transactions_df)
 
-    # Merge market holdings with their average purchase prices
     merged_df = pd.merge(market_df, average_prices_df, on=['ACCOUNT_ID', 'ASSET_ID'], how='left')
-
-    # Ensure CURRENT_PRICE is numeric
     merged_df['CURRENT_PRICE'] = merged_df['CURRENT_PRICE'].astype(float)
 
-    # Add calculated fields for returns
     final_df = add_calc_fields_for_returns(merged_df)
 
     if return_totals:
-        # Summarize values for reporting
         asset_value = final_df['CURRENT_ASSET_VALUE'].sum().round(2)
         return_value_base = final_df['CURRENT_RETURN_VALUE_BASE'].sum().round(2)
         return_value = final_df['CURRENT_RETURN_VALUE'].sum().round(2)
 
-        # Calculate return rates
         return_rate_base = ((asset_value / (asset_value - return_value_base) - 1) * 100).round(2)
         return_rate = ((asset_value / (asset_value - return_value) - 1) * 100).round(2)
 
@@ -63,10 +60,8 @@ def calculate_current_values(owner=None, return_totals=False):
         return final_df
 
 
-
-def calculate_portfolio_over_time(owner=None):
-    # transactions_df = query_all_transactions(owner)
-    transactions_df = get_current_portfolio_data(table_name='TRANSACTIONS_ALL', account_owner=owner)
+def calculate_portfolio_over_time(portfolio_id=None):
+    transactions_df = get_portfolio_transactions(portfolio_id=portfolio_id)
     transactions_df = preprocess_transactions(transactions_df)
 
     asset_ids = transactions_df['ASSET_ID'].unique()
@@ -90,29 +85,31 @@ def calculate_portfolio_over_time(owner=None):
 
     return portfolio_df
 
-def calculate_all_portfolios_over_time(owners):
 
-    all_porfolios = []
+def calculate_all_portfolios_over_time(portfolio_ids):
+    all_portfolios = []
 
-    for owner in owners:
-        portfolio_df = calculate_portfolio_over_time(owner=owner)
-        all_porfolios.append(portfolio_df)
+    for portfolio_id in portfolio_ids:
+        portfolio_df = calculate_portfolio_over_time(portfolio_id=portfolio_id)
+        all_portfolios.append(portfolio_df)
 
-    all_porfolios_df = pd.concat(all_porfolios, keys=owners).reset_index(drop=True)
+    all_portfolios_df = pd.concat(all_portfolios, keys=portfolio_ids).reset_index(drop=True)
 
-    return all_porfolios_df
+    return all_portfolios_df
 
 
-def calculate_return_rate_per_asset(owner=None, aggregation_column='NAME'):
-
-    df = calculate_current_values(owner=owner)
+def calculate_return_rate_per_asset(portfolio_id=None, aggregation_column='NAME'):
+    df = calculate_current_values(portfolio_id=portfolio_id)
 
     df = df.groupby([aggregation_column])[
         ['PURCHASE_ASSET_VALUE_BASE', 'PURCHASE_ASSET_VALUE', 'CURRENT_ASSET_VALUE', 'CURRENT_RETURN_VALUE_BASE',
          'CURRENT_RETURN_VALUE', 'RETURN_RATE_BASE', 'RETURN_RATE']].sum()
 
-    df['RETURN_RATE_BASE'] = (df['CURRENT_ASSET_VALUE'] / (df['CURRENT_ASSET_VALUE'] - df['CURRENT_RETURN_VALUE_BASE']) - 1).multiply(100).round(2)
-    df['RETURN_RATE'] = (df['CURRENT_ASSET_VALUE'] / (df['CURRENT_ASSET_VALUE'] - df['CURRENT_RETURN_VALUE']) - 1).multiply(100).round(2)
+    df['RETURN_RATE_BASE'] = (
+            df['CURRENT_ASSET_VALUE'] / (df['CURRENT_ASSET_VALUE'] - df['CURRENT_RETURN_VALUE_BASE']) - 1
+    ).multiply(100).round(2)
+    df['RETURN_RATE'] = (
+            df['CURRENT_ASSET_VALUE'] / (df['CURRENT_ASSET_VALUE'] - df['CURRENT_RETURN_VALUE']) - 1
+    ).multiply(100).round(2)
 
     return df[['CURRENT_RETURN_VALUE', 'RETURN_RATE']]
-
