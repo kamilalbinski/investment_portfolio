@@ -50,14 +50,14 @@ def calculate_average_purchase_price(df):
     # grouped_df = df.groupby(['ACCOUNT_ID', 'ASSET_ID'])[['PURCHASE_VALUE', 'PURCHASE_VOLUME']].sum()
     #
     # grouped_df['AVERAGE_PRICE'] = grouped_df['PURCHASE_VALUE'] / ['PURCHASE_VOLUME']
-    grouped = df.groupby(['ACCOUNT_ID', 'ASSET_ID'])
-    grouped_df = grouped.apply(
-        lambda g: pd.Series({
-            'TOTAL_PURCHASE_VALUE_BASE': g['PURCHASE_VALUE_BASE'].sum(),
-            'TOTAL_PURCHASE_VALUE': g['PURCHASE_VALUE'].sum(),
-            'TOTAL_PURCHASE_VOLUME': g['PURCHASE_VOLUME'].sum()
-        })
-    ).reset_index()
+    grouped_df = (
+        df.groupby(['ACCOUNT_ID', 'ASSET_ID'], as_index=False)
+        .agg(
+            TOTAL_PURCHASE_VALUE_BASE=('PURCHASE_VALUE_BASE', 'sum'),
+            TOTAL_PURCHASE_VALUE=('PURCHASE_VALUE', 'sum'),
+            TOTAL_PURCHASE_VOLUME=('PURCHASE_VOLUME', 'sum')
+        )
+    )
 
     # Calculate the average purchase price for each group
     grouped_df['AVERAGE_PURCHASE_PRICE_BASE'] = (
