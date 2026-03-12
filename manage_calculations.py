@@ -11,8 +11,7 @@ from utils.database_setup import (
     get_price_data,
     get_all_currency_asset_ids,
     get_portfolio_holdings_values,
-    get_portfolio_transactions,
-    get_portfolios_list,
+    get_portfolio_transactions
 )
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="yfinance")
@@ -40,20 +39,39 @@ def calculate_current_values(portfolio_id=None, return_totals=False):
     transactions_df = get_portfolio_transactions(portfolio_id=portfolio_id)
     market_df = get_portfolio_holdings_values(portfolio_id=portfolio_id)
 
-    average_prices_df = calculate_average_purchase_price(transactions_df)
+    if transactions_df.empty or market_df.empty:
+        final_df = market_df.copy()
+        for col in [
+            'AVERAGE_PURCHASE_PRICE_BASE',
+            'AVERAGE_PURCHASE_PRICE',
+            'CURRENT_ASSET_VALUE',
+            'PURCHASE_ASSET_VALUE_BASE',
+            'PURCHASE_ASSET_VALUE',
+            'CURRENT_RETURN_VALUE_BASE',
+            'CURRENT_RETURN_VALUE',
+            'RETURN_RATE_BASE',
+            'RETURN_RATE',
+        ]:
+            if col not in final_df.columns:
+                final_df[col] = 0.0
+    else:
+        average_prices_df = calculate_average_purchase_price(transactions_df)
 
-    merged_df = pd.merge(market_df, average_prices_df, on=['ACCOUNT_ID', 'ASSET_ID'], how='left')
-    merged_df['CURRENT_PRICE'] = merged_df['CURRENT_PRICE'].astype(float)
+        merged_df = pd.merge(market_df, average_prices_df, on=['ACCOUNT_ID', 'ASSET_ID'], how='left')
+        merged_df['CURRENT_PRICE'] = merged_df['CURRENT_PRICE'].astype(float)
 
-    final_df = add_calc_fields_for_returns(merged_df)
+        final_df = add_calc_fields_for_returns(merged_df)
 
     if return_totals:
-        asset_value = final_df['CURRENT_ASSET_VALUE'].sum().round(2)
-        return_value_base = final_df['CURRENT_RETURN_VALUE_BASE'].sum().round(2)
-        return_value = final_df['CURRENT_RETURN_VALUE'].sum().round(2)
+        asset_value = round(float(final_df['CURRENT_ASSET_VALUE'].sum()), 2)
+        return_value_base = round(float(final_df['CURRENT_RETURN_VALUE_BASE'].sum()), 2)
+        return_value = round(float(final_df['CURRENT_RETURN_VALUE'].sum()), 2)
 
-        return_rate_base = ((asset_value / (asset_value - return_value_base) - 1) * 100).round(2)
-        return_rate = ((asset_value / (asset_value - return_value) - 1) * 100).round(2)
+        base_denominator = asset_value - return_value_base
+        value_denominator = asset_value - return_value
+
+        return_rate_base = round((asset_value / base_denominator - 1) * 100, 2) if base_denominator else 0.0
+        return_rate = round((asset_value / value_denominator - 1) * 100, 2) if value_denominator else 0.0
 
         return final_df, asset_value, return_value_base, return_rate_base, return_value, return_rate
     else:
