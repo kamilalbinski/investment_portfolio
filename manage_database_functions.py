@@ -1,7 +1,7 @@
 from etl_pipeline.transformers import *
 from etl_pipeline.parsers_webpages import parse_cpi_pl
 from etl_pipeline.loaders import upload_to_table
-from utils.database_setup import get_temporary_owners_list, backup_database
+from utils.database_setup import get_temporary_portfolios_list, backup_database
 from manage_calculations import calculate_all_portfolios_over_time
 import warnings
 
@@ -27,10 +27,8 @@ def refresh_fx():
     print(f'FX Refresh completed')
 
 def refresh_calculated_tables():
-    # TODO - refresh for all existing portfolios
-    owners = get_temporary_owners_list()[:-1]#temporary solution
-    #owners.append(None)
-    portfolio_df = calculate_all_portfolios_over_time(owners)
+    portfolio_ids = [int(x) for x in get_temporary_portfolios_list()]
+    portfolio_df = calculate_all_portfolios_over_time(portfolio_ids)
     upload_to_table(portfolio_df, 'AGGREGATED_VALUES', action='replace')
     print(f'Calculation Tables Refresh completed')
 
