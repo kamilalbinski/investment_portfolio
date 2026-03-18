@@ -292,6 +292,61 @@ def plot_asset_value_by_account(data, drill_down_profile=True):
 
     return fig
 
+
+def plot_current_vs_target_profile(data, portfolio_id=None):
+    from views.custom_views import current_vs_target_profile_table
+
+    comparison_df = current_vs_target_profile_table(data=data, portfolio_id=portfolio_id, include_gap=True)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    if comparison_df.empty:
+        ax.set_title('Current Portfolio Versus Target')
+        ax.text(0.5, 0.5, 'No data available', ha='center', va='center', transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+
+    y_pos = np.arange(len(comparison_df))
+    bar_height = 0.45
+
+    ax.barh(
+        y_pos,
+        comparison_df['TARGET_PCT'],
+        height=bar_height,
+        color='tab:blue',
+        alpha=0.35,
+        label='Target allocation (%)'
+    )
+    ax.barh(
+        y_pos,
+        comparison_df['CURRENT_PCT'],
+        height=bar_height * 0.65,
+        color='tab:blue',
+        alpha=0.9,
+        label='Current allocation (%)'
+    )
+
+    for idx, row in comparison_df.iterrows():
+        label_x = max(row['TARGET_PCT'], row['CURRENT_PCT']) + 0.5
+        ax.text(
+            label_x,
+            idx,
+            f"{row['GAP_PCT']:+.1f}%",
+            va='center',
+            fontsize=9
+        )
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(comparison_df['PROFILE'])
+    ax.invert_yaxis()
+    ax.set_xlabel('Allocation (%)')
+    ax.set_title('Current Portfolio Versus Target')
+    ax.grid(axis='x', linestyle='--', alpha=0.4)
+    ax.legend(loc='lower right')
+    plt.tight_layout()
+
+    return fig
+
 # Creating the new function
 def plot_return_values(df, sort_by='CURRENT_RETURN_VALUE'):
     """

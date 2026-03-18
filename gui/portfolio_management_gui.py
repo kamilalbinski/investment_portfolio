@@ -7,12 +7,13 @@ import os
 import datetime
 
 from manage_calculations import calculate_current_values, calculate_return_rate_per_asset
-from views.custom_views import default_pivot, default_table, aggregated_values_pivoted
+from views.custom_views import default_pivot, default_table, aggregated_values_pivoted, current_vs_target_profile_table
 from visualization.dynamic_plots import (
     plot_portfolio_percentage,
     plot_portfolio_over_time,
     plot_asset_value_by_account,
     plot_return_values,
+    plot_current_vs_target_profile,
     _filter_data_for_timeframe,
 )
 from manage_database_functions import refresh_all
@@ -125,12 +126,17 @@ class PortfolioManager:
                                                 value=5)
         self.plot_option_e.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
+        self.plot_option_f = ctk.CTkRadioButton(self.left_frame, text="Current Portfolio Versus Target",
+                                                variable=self.plot_choice,
+                                                value=6)
+        self.plot_option_f.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
         self.plot_option_a.configure(command=self.on_selection_change)
         self.plot_option_b.configure(command=self.on_selection_change)
         self.plot_option_c.configure(command=self.on_selection_change)
         self.plot_option_d.configure(command=self.on_selection_change)
         self.plot_option_e.configure(command=self.on_selection_change)
+        self.plot_option_f.configure(command=self.on_selection_change)
 
         # Dark Mode Switch
         self.dark_mode_switch = ctk.CTkSwitch(self.left_frame, text="Dark Mode", command=self.toggle_dark_mode)
@@ -214,10 +220,13 @@ class PortfolioManager:
         # Construct the file path for the CSV
         parent_dir = os.path.dirname(os.getcwd())
         # Determine what data to save based on the current plot selection
-        if self.plot_choice.get() == 1 or self.plot_choice.get() >= 3:
+        if self.plot_choice.get() == 1 or self.plot_choice.get() in (3, 4, 5):
             # Save current portfolio values
             data = default_table(self.plot_data, portfolio_id)
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
+        elif self.plot_choice.get() == 6:
+            data = current_vs_target_profile_table(self.plot_data, portfolio_id, include_gap=True)
+            file_path = os.path.join(parent_dir, f"{formatted_date}_current_vs_target_output.csv")
         elif self.plot_choice.get() == 2:
             # # Save portfolio value over time
             # portfolio_data, transactions_data = get_portfolio_over_time(portfolio_id)
@@ -255,7 +264,10 @@ class PortfolioManager:
         self.total_return_value.configure(text=f"{return_value:,}")
         self.total_return_base_value.configure(text=f"{return_rate}%")
 
-        self.pivoted_data = default_pivot(df, portfolio_id, save_results=False)
+        if self.plot_choice.get() == 6:
+            self.pivoted_data = current_vs_target_profile_table(df, portfolio_id)
+        else:
+            self.pivoted_data = default_pivot(df, portfolio_id, save_results=False)
         self.plot_data = df
 
         # Update table section
@@ -304,6 +316,12 @@ class PortfolioManager:
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
             self.append_log(f"Drawing return by asset: {portfolio_id}")
+        elif self.plot_choice.get() == 6:
+            fig = plot_current_vs_target_profile(self.plot_data, portfolio_id=portfolio_id)
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
+            canvas_widget = canvas.get_tk_widget()
+            canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            self.append_log(f"Drawing current portfolio versus target: {portfolio_id}")
         else:
             self.append_log("No plot selected")
 
@@ -328,8 +346,11 @@ class PortfolioManager:
             tree.heading(col, text=col, anchor=tk.W)
         for _, row in df.iterrows():
             tree.insert("", tk.END, values=tuple(row))
-        tree.column('CURRENT_ASSET_VALUE', anchor='e')
-        tree.column('PERCENTAGE', anchor='e')
+        for col in ('CURRENT_ASSET_VALUE', 'PERCENTAGE', 'CURRENT_ALLOCATION_PERCENT',
+                    'TARGET_PERCENTAGE', 'ALLOCATION_GAP_PERCENT', 'CURRENT_PCT',
+                    'TARGET_PCT', 'GAP_PCT'):
+            if col in column_headers:
+                tree.column(col, anchor='e')
 
 
 def main():
