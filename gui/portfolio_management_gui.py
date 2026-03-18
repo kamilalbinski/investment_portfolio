@@ -17,7 +17,7 @@ from visualization.dynamic_plots import (
 )
 from manage_database_functions import refresh_all
 from manage_pipeline_functions import run_etl_processes
-from utils.database_setup import get_temporary_owners_list, get_portfolio_over_time
+from utils.database_setup import get_portfolio_selector_items, get_portfolio_over_time
 
 
 class PortfolioManager:
@@ -51,7 +51,7 @@ class PortfolioManager:
 
     def setup_control_widgets(self):
 
-        self.owner_names = get_temporary_owners_list()
+        self.portfolio_names, self.portfolio_name_to_id = get_portfolio_selector_items()
 
         # Buttons
         self.refresh_etl_button = ctk.CTkButton(self.left_frame, text="Run ETL", command=self.gui_run_etl)
@@ -61,17 +61,17 @@ class PortfolioManager:
         self.refresh_db_button.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
         # Container frame for the label and Combobox
-        self.owner_selection_frame = ctk.CTkFrame(self.left_frame)
-        self.owner_selection_frame.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
+        self.portfolio_selection_frame = ctk.CTkFrame(self.left_frame)
+        self.portfolio_selection_frame.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
         # Label for "Portfolio Owner:"
-        self.owner_label = ctk.CTkLabel(self.owner_selection_frame, text="Portfolio name:")
-        self.owner_label.pack(side=tk.LEFT, padx=(0, 10), pady=(10, 10))  # Adjust padding as needed
+        self.portfolio_label = ctk.CTkLabel(self.portfolio_selection_frame, text="Portfolio name:")
+        self.portfolio_label.pack(side=tk.LEFT, padx=(0, 10), pady=(10, 10))  # Adjust padding as needed
 
-        # Combobox for selecting the owner's name
-        self.owner_combobox = ttk.Combobox(self.owner_selection_frame, values=self.owner_names, state="readonly")
-        self.owner_combobox.pack(side=tk.LEFT, fill=tk.X)
-        self.owner_combobox.set("All")  # Default selection
+        # Combobox for selecting the portfolio_id's name
+        self.portfolio_combobox = ttk.Combobox(self.portfolio_selection_frame, values=self.portfolio_names, state="readonly")
+        self.portfolio_combobox.pack(side=tk.LEFT, fill=tk.X)
+        self.portfolio_combobox.set(self.portfolio_names[0] if self.portfolio_names else "")  # Default selection
 
         self.timeframe_selection_frame = ctk.CTkFrame(self.left_frame)
         self.timeframe_selection_frame.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
@@ -93,7 +93,7 @@ class PortfolioManager:
                                             command=self.save_table_to_csv)
         self.execute_button.pack(side=tk.TOP, fill=tk.X, padx=(0, 10), pady=(10, 10))
 
-        self.owner_combobox.bind("<<ComboboxSelected>>", lambda event: self.on_selection_change())
+        self.portfolio_combobox.bind("<<ComboboxSelected>>", lambda event: self.on_selection_change())
         self.timeframe_combobox.bind("<<ComboboxSelected>>", lambda event: self.on_selection_change())
 
         # Radio buttons for selecting the plot function
@@ -197,11 +197,15 @@ class PortfolioManager:
 
     # Further methods would go here...
 
+    def _get_selected_portfolio_id(self):
+        selected_portfolio_name = self.portfolio_combobox.get()
+        if not selected_portfolio_name:
+            return None
+        return self.portfolio_name_to_id.get(selected_portfolio_name)
+
     def save_table_to_csv(self):
-        # Get the current owner selection from a combobox
-        owner = self.owner_combobox.get()
-        if owner == 'All':
-            owner = None
+        # Get the current portfolio_id selection from a combobox
+        portfolio_id = self._get_selected_portfolio_id()
 
         # Get current date and time, format date as YYYYMMDD
         now = datetime.datetime.now()
@@ -212,11 +216,11 @@ class PortfolioManager:
         # Determine what data to save based on the current plot selection
         if self.plot_choice.get() == 1 or self.plot_choice.get() >= 3:
             # Save current portfolio values
-            data = default_table(self.plot_data, owner)
+            data = default_table(self.plot_data, portfolio_id)
             file_path = os.path.join(parent_dir, f"{formatted_date}_current_assets_output.csv")
         elif self.plot_choice.get() == 2:
             # # Save portfolio value over time
-            # portfolio_data, transactions_data = get_portfolio_over_time(owner)
+            # portfolio_data, transactions_data = get_portfolio_over_time(portfolio_id)
             # selected_timeframe = self.timeframe_combobox.get()
             # data, _ = _filter_data_for_timeframe(portfolio_data, transactions_data, 'All')
             # # data, _ = _filter_data_for_timeframe(portfolio_data, transactions_data, selected_timeframe)
@@ -224,7 +228,7 @@ class PortfolioManager:
 
 
             # Save portfolio value over time
-            data = aggregated_values_pivoted(None, owner)
+            data = aggregated_values_pivoted(None, portfolio_id)
             file_path = os.path.join(parent_dir, f"{formatted_date}_portfolio_over_time_output.csv")
 
 
@@ -237,23 +241,21 @@ class PortfolioManager:
 
         self.update_timeframe_selector_state()
 
-        owner = self.owner_combobox.get()
+        selected_portfolio_name = self.portfolio_combobox.get()
+        portfolio_id = self._get_selected_portfolio_id()
 
-        self.append_log(f"Owner changed to: {self.owner_combobox.get()}")
-
-        if owner == 'All':
-            owner = None
+        self.append_log(f"Portfolio changed to: {selected_portfolio_name}")
 
         # Get required data
 
         #TODO verify performance: current value calcs vs stored in table. Create table if needed
-        df, asset_value, _, _, return_value, return_rate = calculate_current_values(owner, return_totals=True)
+        df, asset_value, _, _, return_value, return_rate = calculate_current_values(portfolio_id, return_totals=True)
 
         self.total_asset_value.configure(text=f"{asset_value:,}")
         self.total_return_value.configure(text=f"{return_value:,}")
         self.total_return_base_value.configure(text=f"{return_rate}%")
 
-        self.pivoted_data = default_pivot(df, owner, save_results=False)
+        self.pivoted_data = default_pivot(df, portfolio_id, save_results=False)
         self.plot_data = df
 
         # Update table section
@@ -262,9 +264,9 @@ class PortfolioManager:
 
         # Update plot section
 
-        self.display_selected_plot(owner)
+        self.display_selected_plot(portfolio_id)
 
-    def display_selected_plot(self, owner):
+    def display_selected_plot(self, portfolio_id):
         self.clear_frame(self.plot_frame)  # Clear any existing content in the frame
 
         if self.plot_choice.get() == 1:
@@ -272,36 +274,36 @@ class PortfolioManager:
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing current asset value of Portfolio: {owner}")
+            self.append_log(f"Drawing current asset value of Portfolio: {portfolio_id}")
         elif self.plot_choice.get() == 2:
-            portfolio_data, transactions_data = get_portfolio_over_time(owner)
+            portfolio_data, transactions_data = get_portfolio_over_time(portfolio_id)
             self.plot_data = portfolio_data
             selected_timeframe = self.timeframe_combobox.get()
             fig = plot_portfolio_over_time(portfolio_data, transactions_data, timeframe=selected_timeframe)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing asset value over time for Portfolio: {owner} ({selected_timeframe})")
+            self.append_log(f"Drawing asset value over time for Portfolio: {portfolio_id} ({selected_timeframe})")
         elif self.plot_choice.get() == 3:
             fig = plot_asset_value_by_account(self.plot_data, drill_down_profile=False)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing current assets return rate by account: {owner}")
+            self.append_log(f"Drawing current assets return rate by account: {portfolio_id}")
         elif self.plot_choice.get() == 4:
             fig = plot_asset_value_by_account(self.plot_data, drill_down_profile=True)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing current assets return rate by profile: {owner}")
+            self.append_log(f"Drawing current assets return rate by profile: {portfolio_id}")
         elif self.plot_choice.get() == 5:
-            return_by_asset_data = calculate_return_rate_per_asset(owner, aggregation_column='PROFILE')
+            return_by_asset_data = calculate_return_rate_per_asset(portfolio_id, aggregation_column='PROFILE')
             self.plot_data = return_by_asset_data
             fig = plot_return_values(self.plot_data)
             canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)  # Plot section
             canvas_widget = canvas.get_tk_widget()
             canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            self.append_log(f"Drawing return by asset: {owner}")
+            self.append_log(f"Drawing return by asset: {portfolio_id}")
         else:
             self.append_log("No plot selected")
 
