@@ -4,29 +4,29 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![SQLite](https://img.shields.io/badge/database-SQLite-lightgrey.svg)](https://sqlite.org/index.html)
 
-## 🚀 Overview
+##  Overview
 
 **Investment Portfolio Manager** is a desktop application and backend pipeline for tracking and analyzing personal investments. It supports automated data import from brokers/banks, return calculation, time series aggregation, and export-ready reporting — all managed through a GUI or programmable CLI.
 
 ---
 
-## 🎯 Features
+##  Features
 
 - ✅ GUI built with `Tkinter`
-- 📁 Parses files from **mBank**, **PKO Treasury Bonds**, and others
-- 💾 Loads into a robust **SQLite** database
-- 🔄 ETL pipeline for parsing, transforming, and loading holdings and transactions
-- 📉 Calculates portfolio value over time and per-asset return rates
-- 🌐 Updates market data from:
+- ✅ Parses files from **mBank**, **PKO Treasury Bonds**, and others
+- ✅ Loads into a robust **SQLite** database
+- ✅ ETL pipeline for parsing, transforming, and loading holdings and transactions
+- ✅ Calculates portfolio value over time and per-asset return rates
+- ✅ Updates market data from:
   - YFinance
   - Biznesradar (Polish bond prices data)
   - Polish Retail inflation-rating bonds (EDO)
-- 📊 Visualizations
-- 📤 Exports reports in CSV and PDF formats
+- ✅ Visualizations
+- ✅ Exports reports in CSV and PDF formats
 
 ---
 
-## 🗂 Project Structure
+##  Project Structure
 
 ```text
 investment_portfolio/
@@ -61,7 +61,7 @@ investment_portfolio/
 
 ---
 
-## 🛠️ Installation
+##  Installation
 
 ```bash
 git clone https://github.com/kamilalbinski/investment_portfolio.git
@@ -75,7 +75,7 @@ setup_database("portfolio.db")
 ```
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 Edit `utils/config.py` to point to correct folders and DB:
 
@@ -87,7 +87,7 @@ DATABASE_FILE = "portfolio.db"
 
 ---
 
-## 🚦 Quick Start
+## Quick Start
 
 ### GUI App
 
@@ -103,13 +103,13 @@ python manage_calculations.py
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 > *TBD*
 
 ---
 
-## 📈 Core Calculations
+## Core Calculations
 
 - Current vs purchase value
 - Average purchase price
@@ -119,7 +119,7 @@ python manage_calculations.py
 
 ---
 
-## 📤 Reports
+## Reports
 
 Export includes:
 
@@ -132,7 +132,7 @@ Formats: **CSV**, **PDF**
 
 ---
 
-## 🧪 Extensibility
+## Extensibility
 
 - Easily add support for new brokers via custom parsers
 - ETL structure is modular (Parser → Transformer → Loader)
@@ -141,7 +141,7 @@ Formats: **CSV**, **PDF**
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
 - `pandas`,`numpy`,`sqlite3`
 - `yfinance`,`openpyxl`, `requests`

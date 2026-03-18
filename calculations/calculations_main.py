@@ -110,10 +110,10 @@ def preprocess_transactions(transactions_df):
     transactions_df['EFFECTIVE_VOLUME'] = transactions_df['VOLUME'].where(transactions_df['BUY_SELL'] == 'B',
                                                                           -transactions_df['VOLUME'])
 
-    groupby_list = ['ACCOUNT_OWNER_ID', 'ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
+    groupby_list = ['PORTFOLIO_ID', 'ACCOUNT_ID', 'TIMESTAMP', 'ASSET_ID', 'BUY_SELL']
 
-    if 'ACCOUNT_OWNER_ID' not in transactions_df.columns:
-        groupby_list.remove('ACCOUNT_OWNER_ID')
+    if 'PORTFOLIO_ID' not in transactions_df.columns:
+        groupby_list.remove('PORTFOLIO_ID')
 
     transactions_df = transactions_df.groupby(groupby_list).agg({
         'ACCOUNT_NAME': 'first',
@@ -191,7 +191,7 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # asset_name = daily_data['NAME'].dropna().unique()[0]
 
     # Forward-fill missing values and fill NaN with 0
-    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME','ACCOUNT_OWNER_ID']].ffill().fillna(0)
+    daily_data = daily_data[['TIMESTAMP', 'CONVERTED_PRICE', 'AGGREGATED_VOLUME','PORTFOLIO_ID']].ffill().fillna(0)
 
     #TODO verify drop_duplicates workaround
     daily_data.drop_duplicates(subset='TIMESTAMP', keep='last',inplace=True)
@@ -200,11 +200,10 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     daily_data['AGGREGATED_VALUE'] = daily_data['CONVERTED_PRICE'] * daily_data['AGGREGATED_VOLUME']
 
     daily_data['ASSET_ID'] = asset_id
-    daily_data['ACCOUNT_OWNER_ID'] = daily_data['ACCOUNT_OWNER_ID'].astype(int)
+    daily_data['PORTFOLIO_ID'] = daily_data['PORTFOLIO_ID'].astype(int)
     # Filter the required columns and remove rows with zero AGGREGATED value
 
-    #TODO Replace Owner with portfolio
-    result = daily_data[['TIMESTAMP','ASSET_ID','ACCOUNT_OWNER_ID','AGGREGATED_VALUE']]
+    result = daily_data[['TIMESTAMP','ASSET_ID','PORTFOLIO_ID','AGGREGATED_VALUE']]
     result = result[result['AGGREGATED_VALUE'] != 0].copy()
 
 
@@ -214,4 +213,3 @@ def calculate_asset_daily_values(transactions_df, adjusted_prices_df, asset_id):
     # })
 
     return result
-
