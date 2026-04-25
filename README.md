@@ -30,33 +30,38 @@
 
 ```text
 investment_portfolio/
-├── .gitignore
-├── README.md
-├── main.py                         # GUI app entry point
-├── calculations/
-│   ├── __init__.py
-│   ├── calculations_edo.py         # Bond-specific return logic
-│   └── calculations_main.py        # General return & value logic
-├── etl_pipeline/
-│   ├── __init__.py
-│   ├── etl_utils.py                # Common helpers
-│   ├── loaders.py                  # DB loading logic
-│   ├── parsers_files.py            # CSV/Excel parsers
-│   ├── parsers_webpages.py         # Web scraping (e.g. Biznesradar)
-│   ├── parsers_yfinance.py         # YFinance data access
-│   └── transformers.py             # Data cleaning, merging
-├── reports/
-│   ├── __init__.py
-│   ├── generate_csv.py             # CSV export
-│   └── generate_pdf.py             # PDF generation (with charts)
-├── utils/
-│   ├── __init__.py
-│   ├── config.py                   # Paths, flags
-│   └── database_setup.py           # DB schema setup & queries
-├── manage_calculations.py         # Script for computing values/returns
-├── manage_database_functions.py   # Database refresh functions
-├── manage_pipeline_functions.py   # Shared ETL logic
-└── requirements.txt
+|-- .gitignore
+|-- README.md
+|-- main.py                          # GUI application entry point
+|-- manage_calculations.py           # Portfolio calculation helpers / CLI entry
+|-- manage_database_functions.py     # Database refresh functions
+|-- manage_pipeline_functions.py     # ETL orchestration helpers
+|-- requirements.txt
+|-- calculations/
+|   |-- calculations_edo.py          # Bond-specific return logic
+|   `-- calculations_main.py         # General return and valuation logic
+|-- ddl/
+|   |-- tables/                      # SQL table definitions
+|   `-- view/                        # SQL view definitions
+|-- etl_pipeline/
+|   |-- etl_utils.py                 # Shared ETL utilities
+|   |-- loaders.py                   # Database loading logic
+|   |-- parsers_files.py             # Broker and file parsers
+|   |-- parsers_webpages.py          # Web scraping parsers
+|   |-- parsers_yfinance.py          # YFinance market data access
+|   `-- transformers.py              # Data cleaning and transformation
+|-- gui/
+|   `-- portfolio_management_gui.py  # Main CustomTkinter GUI
+|-- utils/
+|   |-- config.py                    # Paths, runtime flags, local config
+|   |-- database_setup.py            # DB setup and query utilities
+|   `-- misc_func.py                 # Miscellaneous helper functions
+|-- views/
+|   |-- custom_views.py              # DataFrame-based table and view builders
+|   `-- pivot.csv                    # Example / generated pivot output
+`-- visualization/
+    |-- dashboards.py                # Dashboard-oriented visual helpers
+    `-- dynamic_plots.py             # Matplotlib plots used by the GUI
 ```
 
 ---
