@@ -172,16 +172,21 @@ def current_vs_target_profile_table(data=None, portfolio_id=None, include_gap=Fa
     merged['CURRENT_ASSET_VALUE'] = merged['CURRENT_ASSET_VALUE'].fillna(0.0)
     merged['CURRENT_ALLOCATION_PERCENT'] = merged['CURRENT_ALLOCATION_PERCENT'].fillna(0.0)
     merged['TARGET_PERCENTAGE'] = merged['TARGET_PERCENTAGE'].fillna(0.0)
-    merged['GAP_PCT'] = merged['CURRENT_ALLOCATION_PERCENT'] - merged['TARGET_PERCENTAGE']
+    merged['GAP_PERCENTAGE'] = merged['CURRENT_ALLOCATION_PERCENT'] - merged['TARGET_PERCENTAGE']
+    merged['REBALANCING'] = (
+        merged['CURRENT_ASSET_VALUE'] *
+        ((merged['TARGET_PERCENTAGE'] - merged['CURRENT_ALLOCATION_PERCENT']) / 100)
+    )
     merged = merged.sort_values('CURRENT_ALLOCATION_PERCENT', ascending=False)
 
     merged['CURRENT_ASSET_VALUE'] = merged['CURRENT_ASSET_VALUE'].round(2)
-    merged['CURRENT_PCT'] = merged['CURRENT_ALLOCATION_PERCENT'].round(2)
-    merged['TARGET_PCT'] = merged['TARGET_PERCENTAGE'].round(2)
-    merged['GAP_PCT'] = merged['GAP_PCT'].round(2)
+    merged['CURRENT_PERCENTAGE'] = merged['CURRENT_ALLOCATION_PERCENT'].round(2)
+    merged['TARGET_PERCENTAGE'] = merged['TARGET_PERCENTAGE'].round(2)
+    merged['GAP_PERCENTAGE'] = merged['GAP_PERCENTAGE'].round(2)
+    merged['REBALANCING'] = merged['REBALANCING'].round(2)
 
-    output_columns = ['PROFILE', 'CURRENT_ASSET_VALUE', 'CURRENT_PCT', 'TARGET_PCT']
+    output_columns = ['PROFILE', 'CURRENT_ASSET_VALUE', 'CURRENT_PERCENTAGE', 'TARGET_PERCENTAGE', 'REBALANCING']
     if include_gap:
-        output_columns.append('GAP_PCT')
+        output_columns.append('GAP_PERCENTAGE')
 
     return merged[output_columns].reset_index(drop=True)

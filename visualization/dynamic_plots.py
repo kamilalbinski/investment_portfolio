@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import textwrap
 from matplotlib import pyplot as plt
 
 
@@ -57,6 +58,34 @@ def _annotate_horizontal_bars(ax, bars, labels, fontsize=10, fontweight=None):
         )
 
 
+def _finalize_embedded_plot_layout(fig, ax, min_left=0.12, max_left=0.35, right=0.98, top=0.93, bottom=0.12):
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+
+    leftmost_x = fig.bbox.x0
+    artists = [label for label in ax.get_yticklabels() if label.get_visible() and label.get_text()]
+    if ax.yaxis.label.get_text():
+        artists.append(ax.yaxis.label)
+
+    for artist in artists:
+        bbox = artist.get_window_extent(renderer=renderer)
+        leftmost_x = min(leftmost_x, bbox.x0)
+
+    padding_px = 12
+    required_left = (fig.bbox.x0 - leftmost_x + padding_px) / fig.bbox.width
+    left = min(max_left, max(min_left, fig.subplotpars.left + max(0, required_left)))
+
+    fig.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
+
+
+def _wrap_category_labels(labels, width=16):
+    wrapped_labels = []
+    for label in labels:
+        label_text = '' if label is None else str(label)
+        wrapped_labels.append(textwrap.fill(label_text, width=width, break_long_words=False))
+    return wrapped_labels
+
+
 def plot_portfolio_percentage(data):
     df = pd.DataFrame(data)
 
@@ -77,10 +106,6 @@ def plot_portfolio_percentage(data):
     plt.xticks(rotation=0)
     plt.legend(title='Profile')
 
-    plt.subplots_adjust(top=0.95)
-    # plt.subplots_adjust(top=0.85)
-    plt.tight_layout()
-
     bottoms = np.zeros(len(grouped))
 
     for idx, (name, row) in enumerate(grouped.iterrows()):
@@ -100,6 +125,8 @@ def plot_portfolio_percentage(data):
 
     # ax.text(len(grouped) / 4, max(bottoms) * 1, f'Grand Total: {grand_total:,.2f}', ha='center', va='bottom',
     #         fontsize=12, weight='bold', color='black')
+
+    _finalize_embedded_plot_layout(fig, ax, min_left=0.12, max_left=0.22, right=0.98, top=0.93, bottom=0.12)
 
     return fig
 
@@ -233,6 +260,8 @@ def plot_portfolio_over_time(portfolio_data, transactions_data, timeframe='All')
     ax.grid(True, axis='y', linestyle='--')
     ax.legend()
 
+    _finalize_embedded_plot_layout(fig, ax, min_left=0.12, max_left=0.18, right=0.98, top=0.93, bottom=0.12)
+
     return fig
 
 
@@ -320,7 +349,7 @@ def plot_asset_value_by_account(data, drill_down_profile=True):
 
     # Configure axis labels and plot title
     ax.set_yticks(positions)
-    ax.set_yticklabels(labels)
+    ax.set_yticklabels(_wrap_category_labels(labels, width=16))
 
     ax.set_xlabel('Current Asset Value', fontsize=12)
     if drill_down_profile:
@@ -342,7 +371,7 @@ def plot_asset_value_by_account(data, drill_down_profile=True):
             framealpha=0.9
         )
 
-    plt.tight_layout()
+    _finalize_embedded_plot_layout(fig, ax, min_left=0.20, max_left=0.40, right=0.98, top=0.93, bottom=0.12)
 
     return fig
 
@@ -365,7 +394,7 @@ def plot_current_vs_target_profile(data, portfolio_id=None):
 
     ax.barh(
         y_pos,
-        comparison_df['TARGET_PCT'],
+        comparison_df['TARGET_PERCENTAGE'],
         height=bar_height,
         color='tab:blue',
         alpha=0.35,
@@ -373,35 +402,35 @@ def plot_current_vs_target_profile(data, portfolio_id=None):
     )
     ax.barh(
         y_pos,
-        comparison_df['CURRENT_PCT'],
+        comparison_df['CURRENT_PERCENTAGE'],
         height=bar_height * 0.65,
         color='tab:blue',
         alpha=0.9,
         label='Current allocation (%)'
     )
 
-    max_allocation = comparison_df[['TARGET_PCT', 'CURRENT_PCT']].to_numpy().max()
+    max_allocation = comparison_df[['TARGET_PERCENTAGE', 'CURRENT_PERCENTAGE']].to_numpy().max()
     right_padding = max(3, max_allocation * 0.15)
     ax.set_xlim(0, max_allocation + right_padding)
 
     for idx, row in comparison_df.iterrows():
-        label_x = max(row['TARGET_PCT'], row['CURRENT_PCT']) + (right_padding * 0.15)
+        label_x = max(row['TARGET_PERCENTAGE'], row['CURRENT_PERCENTAGE']) + (right_padding * 0.15)
         ax.text(
             label_x,
             idx,
-            f"{row['GAP_PCT']:+.1f}%",
+            f"{row['GAP_PERCENTAGE']:+.1f}%",
             va='center',
             fontsize=9
         )
 
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(comparison_df['PROFILE'])
+    ax.set_yticklabels(_wrap_category_labels(comparison_df['PROFILE'], width=16))
     ax.invert_yaxis()
     ax.set_xlabel('Allocation (%)')
     ax.set_title('Current Portfolio Versus Target')
     ax.grid(axis='x', linestyle='--', alpha=0.4)
     ax.legend(loc='lower right')
-    plt.tight_layout()
+    _finalize_embedded_plot_layout(fig, ax, min_left=0.20, max_left=0.40, right=0.98, top=0.93, bottom=0.12)
 
     return fig
 
@@ -431,6 +460,7 @@ def plot_return_values(df, sort_by='CURRENT_RETURN_VALUE'):
     # Plot horizontal bars using the chosen sort column for size
     bars = ax.barh(df.index, bar_sizes,
                    color=np.where(bar_sizes >= 0, 'green', 'red'), alpha=0.7)
+    ax.set_yticklabels(_wrap_category_labels(df.index, width=16))
 
     value_min = min(0, bar_sizes.min())
     value_max = max(0, bar_sizes.max())
@@ -452,5 +482,5 @@ def plot_return_values(df, sort_by='CURRENT_RETURN_VALUE'):
     # Grid for better visibility of values
     ax.grid(True, axis='x', linestyle='--', alpha=0.7)
 
-    plt.tight_layout()
+    _finalize_embedded_plot_layout(fig, ax, min_left=0.20, max_left=0.40, right=0.98, top=0.93, bottom=0.12)
     return fig

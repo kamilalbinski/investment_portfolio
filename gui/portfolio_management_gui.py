@@ -1,5 +1,6 @@
 # PortfolioManager.py
 import customtkinter as ctk
+import pandas as pd
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -32,23 +33,58 @@ class PortfolioManager:
         self.log_area.delete("1.0","end")
 
     def setup_frames(self):
-        self.left_frame = ctk.CTkFrame(master=self.master, width=300)
+        self.left_frame_width = 300
+        self.details_frame_width = 200
+        self.table_sub_frame_width = 670
+        self.table_frame_width = self.details_frame_width + self.table_sub_frame_width
+        self.plot_frame_width = 900
+        self.table_frame_height = 280
+        self.plot_frame_height = 520
+        self.top_panel_color = ("gray86", "gray20")
+
+        self.left_frame = ctk.CTkFrame(master=self.master, width=self.left_frame_width)
         self.left_frame.grid(row=0, column=0, sticky="nswe", padx=20, pady=20)
+        self.left_frame.grid_propagate(False)
 
         self.right_frame = ctk.CTkFrame(master=self.master)
         self.right_frame.grid(row=0, column=1, sticky="nswe", padx=20, pady=20)
 
-        self.table_frame = ctk.CTkFrame(master=self.right_frame, width=500)
-        self.table_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=False)
+        self.table_frame = ctk.CTkFrame(
+            master=self.right_frame,
+            width=self.table_frame_width,
+            height=self.table_frame_height,
+            fg_color=self.top_panel_color
+        )
+        self.table_frame.pack(side=tk.TOP, fill=tk.X, expand=False)
+        self.table_frame.pack_propagate(False)
 
-        self.details_frame = ctk.CTkFrame(master=self.table_frame, width=250)
-        self.details_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.details_frame = ctk.CTkFrame(
+            master=self.table_frame,
+            width=self.details_frame_width,
+            height=self.table_frame_height,
+            fg_color=self.top_panel_color
+        )
+        self.details_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
+        self.details_frame.pack_propagate(False)
 
-        self.table_sub_frame = ctk.CTkFrame(master=self.table_frame, width=150)
+        self.table_sub_frame = ctk.CTkFrame(
+            master=self.table_frame,
+            width=self.table_sub_frame_width,
+            height=self.table_frame_height
+        )
         self.table_sub_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False)
+        self.table_sub_frame.pack_propagate(False)
 
-        self.plot_frame = ctk.CTkFrame(master=self.right_frame, width=650)
-        self.plot_frame.pack(side=tk.TOP, fill=tk.X, expand=False)
+        self.plot_frame = ctk.CTkFrame(
+            master=self.right_frame,
+            width=self.plot_frame_width,
+            height=self.plot_frame_height
+        )
+        self.plot_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.plot_frame.pack_propagate(False)
+
+        self.master.update_idletasks()
+        self.master.minsize(self.left_frame_width + self.table_frame_width + 80, 800)
 
     def setup_control_widgets(self):
 
@@ -329,28 +365,148 @@ class PortfolioManager:
         for widget in output_frame.winfo_children():
             widget.destroy()
 
+    def _format_table_for_display(self, df):
+        formatted_df = df.copy()
+        value_columns = {'CURRENT_ASSET_VALUE', 'REBALANCING'}
+        percentage_columns = {
+            'PERCENTAGE',
+            'CURRENT_PERCENTAGE',
+            'TARGET_PERCENTAGE',
+            'GAP_PERCENTAGE',
+            'CURRENT_ALLOCATION_PERCENT',
+            'ALLOCATION_GAP_PERCENT',
+            'CURRENT_PCT',
+            'TARGET_PCT',
+            'GAP_PCT',
+        }
+
+        for col in formatted_df.columns:
+            if not pd.api.types.is_numeric_dtype(formatted_df[col]):
+                continue
+
+            if col in value_columns:
+                formatted_df[col] = formatted_df[col].map(lambda value: f"{value:,.2f}")
+            elif col in percentage_columns:
+                formatted_df[col] = formatted_df[col].map(lambda value: f"{value:.2f}%")
+
+        return formatted_df
+
+    def _get_tree_column_width(self, column_name):
+        fixed_widths = {
+            'PROFILE': 140,
+            'SUB_CATEGORY': 120,
+            'CURRENT_ASSET_VALUE': 120,
+            'REBALANCING': 120,
+            'PERCENTAGE': 95,
+            'CURRENT_PERCENTAGE': 110,
+            'TARGET_PERCENTAGE': 110,
+            'GAP_PERCENTAGE': 110,
+            'CURRENT_ALLOCATION_PERCENT': 110,
+            'ALLOCATION_GAP_PERCENT': 110,
+            'CURRENT_PCT': 100,
+            'TARGET_PCT': 100,
+            'GAP_PCT': 100,
+        }
+        return fixed_widths.get(column_name, 110)
+
+    def _justify_tree_columns(self, tree, column_headers):
+        if not column_headers:
+            return
+
+        available_width = tree.winfo_width()
+        if available_width <= 1:
+            return
+
+        preferred_widths = {col: self._get_tree_column_width(col) for col in column_headers}
+        total_preferred_width = sum(preferred_widths.values())
+
+        if total_preferred_width >= available_width:
+            target_widths = preferred_widths
+        else:
+            extra_width = available_width - total_preferred_width
+            proportional_base = max(total_preferred_width, 1)
+            target_widths = {}
+            assigned_width = 0
+
+            for col in column_headers[:-1]:
+                expanded_width = preferred_widths[col] + round(
+                    extra_width * (preferred_widths[col] / proportional_base)
+                )
+                target_widths[col] = expanded_width
+                assigned_width += expanded_width
+
+            last_col = column_headers[-1]
+            target_widths[last_col] = max(preferred_widths[last_col], available_width - assigned_width)
+
+        for col in column_headers:
+            tree.column(col, width=target_widths[col], minwidth=preferred_widths[col], stretch=tk.NO)
+
+    def _update_tree_scrollbars(self, tree, tree_scroll_x, tree_scroll_y):
+        x_start, x_end = tree.xview()
+        y_start, y_end = tree.yview()
+
+        if x_start <= 0.0 and x_end >= 1.0:
+            tree_scroll_x.grid_remove()
+        else:
+            tree_scroll_x.grid(row=1, column=0, sticky="ew")
+
+        if y_start <= 0.0 and y_end >= 1.0:
+            tree_scroll_y.grid_remove()
+        else:
+            tree_scroll_y.grid(row=0, column=1, sticky="ns")
+
+    def _refresh_tree_layout(self, tree, column_headers, tree_scroll_x, tree_scroll_y):
+        self._justify_tree_columns(tree, column_headers)
+        self._update_tree_scrollbars(tree, tree_scroll_x, tree_scroll_y)
+
     def display_table_from_dataframe(self):
         self.clear_frame(self.table_sub_frame)  # Clear any existing content in the frame
-        df = self.pivoted_data
-        tree = ttk.Treeview(self.table_sub_frame)
-        tree.pack(expand=False)  # , fill='both')  # Expand the treeview to fill the frame
+        df = self._format_table_for_display(self.pivoted_data)
+        tree_container = ctk.CTkFrame(
+            self.table_sub_frame,
+            fg_color="transparent",
+            width=self.table_sub_frame_width,
+            height=self.table_frame_height
+        )
+        tree_container.pack(fill=tk.BOTH, expand=True)
+        tree_container.pack_propagate(False)
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
+
+        tree_scroll_y = ttk.Scrollbar(tree_container, orient=tk.VERTICAL)
+        tree_scroll_x = ttk.Scrollbar(tree_container, orient=tk.HORIZONTAL)
+        tree = ttk.Treeview(
+            tree_container,
+            yscrollcommand=tree_scroll_y.set,
+            xscrollcommand=tree_scroll_x.set
+        )
         column_headers = list(df.columns)
         tree["columns"] = column_headers
         tree.column("#0", width=0, stretch=tk.NO)  # Hiding the default column
-        # tree.column("#1", width=100, stretch=tk.NO)
-        # tree.column("#2", width=200, stretch=tk.NO)
-        # tree.column("#3", width=100, stretch=tk.NO)
-        # tree.column("#4", width=100, stretch=tk.NO)
         for col in column_headers:
-            tree.column(col, anchor=tk.W)
+            tree.column(col, width=self._get_tree_column_width(col), minwidth=self._get_tree_column_width(col),
+                        stretch=tk.NO, anchor=tk.W)
             tree.heading(col, text=col, anchor=tk.W)
         for _, row in df.iterrows():
             tree.insert("", tk.END, values=tuple(row))
-        for col in ('CURRENT_ASSET_VALUE', 'PERCENTAGE', 'CURRENT_ALLOCATION_PERCENT',
-                    'TARGET_PERCENTAGE', 'ALLOCATION_GAP_PERCENT', 'CURRENT_PCT',
-                    'TARGET_PCT', 'GAP_PCT'):
+        for col in ('CURRENT_ASSET_VALUE', 'REBALANCING', 'PERCENTAGE', 'CURRENT_ALLOCATION_PERCENT',
+                    'TARGET_PERCENTAGE', 'ALLOCATION_GAP_PERCENT', 'CURRENT_PERCENTAGE',
+                    'GAP_PERCENTAGE', 'CURRENT_PCT', 'TARGET_PCT', 'GAP_PCT'):
             if col in column_headers:
                 tree.column(col, anchor='e')
+
+        tree_scroll_y.config(command=tree.yview)
+        tree_scroll_x.config(command=tree.xview)
+
+        tree.grid(row=0, column=0, sticky="nsew")
+        tree_scroll_y.grid(row=0, column=1, sticky="ns")
+        tree_scroll_x.grid(row=1, column=0, sticky="ew")
+
+        tree.bind(
+            "<Configure>",
+            lambda event: self._refresh_tree_layout(tree, column_headers, tree_scroll_x, tree_scroll_y)
+        )
+        self.master.after_idle(lambda: self._refresh_tree_layout(tree, column_headers, tree_scroll_x, tree_scroll_y))
 
 
 def main():
