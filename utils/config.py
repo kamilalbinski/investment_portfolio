@@ -24,7 +24,7 @@ CPI_URL = 'https://stat.gov.pl/download/gfx/portalinformacyjny/pl/defaultstronao
 # === API Configuration ===
 
 # === Local Passwords ===
-DOCS_WITH_ATTACHMENTS = ['document_template_1','document_template_2']
+DOCS_WITH_ATTACHMENTS = ['TwojeDokumenty']
 pdf_password = os.getenv('PDF_PASSWORD', '')
 
 # === Optional Flags ===
