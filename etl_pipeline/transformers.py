@@ -4,6 +4,7 @@ from etl_pipeline.parsers_yfinance import download_adjusted_prices_from_yfinance
 from etl_pipeline.parsers_webpages import download_adjusted_prices_from_biznesradar
 from etl_pipeline.etl_utils import *
 from calculations.calculations_edo import calculate_bulk_edo_values
+import re
 
 ASSETS_IGNORE_LIST = ['CASH','FX']
 
@@ -168,6 +169,22 @@ def transform_transactions(new_data, source, is_edo=False):
 
     new_data_df = pd.DataFrame(new_data)
     assets_df = get_asset_ids_from_database()
+
+    if source == 'mbank' and not is_edo:
+        # mBank moved ETF after the exchange suffix: ISACETFLN -> ISACLNETF.
+        def name_key(name):
+            return re.sub(r'ETF([A-Z]{2})$', r'\1ETF', str(name))
+
+        for name, market in new_data_df[['NAME', 'MARKET']].drop_duplicates().itertuples(index=False, name=None):
+            candidates = assets_df[assets_df['MARKET'] == market]
+            if (candidates['NAME'] == name).any():
+                continue
+            matches = candidates[candidates['NAME'].map(name_key) == name_key(name)]
+            if len(matches) == 1:
+                mask = (new_data_df['NAME'] == name) & (new_data_df['MARKET'] == market)
+                old_name = matches.iloc[0]['NAME']
+                new_data_df.loc[mask, 'NAME'] = old_name
+                print(f"mBank: match found in ASSETS for '{name}' ({market}); renamed to '{old_name}'.")
 
     if not is_edo:
         second_key = 'MARKET'
